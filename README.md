@@ -1,15 +1,25 @@
 # EmbeddixDB
 
-A high-performance vector database designed for LLM memory storage, written in Go. EmbeddixDB provides efficient similarity search, persistent storage, and a RESTful API for easy integration.
+A high-performance vector database with integrated AI capabilities, designed for LLM memory storage and intelligent document processing. Written in Go, EmbeddixDB provides efficient similarity search, persistent storage, auto-embedding, and advanced content analysis.
 
 ## Features
 
+### 🚀 **Core Vector Database**
 - **High-Performance Vector Search**: Supports both flat (brute-force) and HNSW (Hierarchical Navigable Small World) indexes
 - **Multiple Distance Metrics**: Cosine similarity, Euclidean (L2), and Dot product
 - **Persistent Storage**: Choose from in-memory, BoltDB, or BadgerDB backends
 - **Write-Ahead Logging (WAL)**: Ensures data durability and crash recovery
 - **RESTful API**: Easy integration with any application
 - **Batch Operations**: Efficient bulk vector insertions
+
+### 🤖 **AI Integration (NEW)**
+- **ONNX Runtime Integration**: Production-ready embedding inference with real transformer models
+- **Auto-Embedding API**: Automatic vector generation from text content
+- **Content Analysis Pipeline**: Advanced text understanding with sentiment analysis, entity extraction, and topic modeling
+- **Model Management**: Support for popular architectures (BERT, RoBERTa, Sentence Transformers, etc.)
+- **Intelligent Preprocessing**: Language detection, text segmentation, and key phrase extraction
+
+### 🔧 **Operations & Monitoring**
 - **Data Migration**: Built-in tools for backup, restore, and schema evolution
 - **Docker Support**: Production-ready containers with compose configurations
 - **Performance Monitoring**: Comprehensive benchmarking suite
@@ -48,7 +58,9 @@ make build
 
 ## API Usage
 
-### Create a Collection
+### Traditional Vector Operations
+
+#### Create a Collection
 
 ```bash
 curl -X POST http://localhost:8080/collections \
@@ -61,7 +73,7 @@ curl -X POST http://localhost:8080/collections \
   }'
 ```
 
-### Add Vectors
+#### Add Vectors
 
 ```bash
 # Single vector
@@ -85,7 +97,7 @@ curl -X POST http://localhost:8080/collections/documents/vectors/batch \
   ]'
 ```
 
-### Search for Similar Vectors
+#### Search for Similar Vectors
 
 ```bash
 # K-nearest neighbor search
@@ -109,6 +121,86 @@ curl -X POST http://localhost:8080/collections/documents/search/range \
   }'
 ```
 
+### 🤖 AI-Enhanced Operations (NEW)
+
+#### Auto-Embedding from Text
+
+```bash
+# Create collection with auto-embedding enabled
+curl -X POST http://localhost:8080/collections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "smart_docs",
+    "auto_embed": true,
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2"
+  }'
+
+# Add text content - vectors generated automatically
+curl -X POST http://localhost:8080/collections/smart_docs/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "article1",
+    "content": "Machine learning is transforming how we build software...",
+    "metadata": {"author": "Jane Doe", "category": "tech"}
+  }'
+
+# Search using natural language
+curl -X POST http://localhost:8080/collections/smart_docs/search/text \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "How does AI impact software development?",
+    "top_k": 5,
+    "analyze_content": true
+  }'
+```
+
+#### Content Analysis Pipeline
+
+```bash
+# Analyze text content for insights
+curl -X POST http://localhost:8080/ai/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "I love this new AI technology! It makes development so much faster and more efficient.",
+    "include_sentiment": true,
+    "include_entities": true,
+    "include_topics": true,
+    "include_language": true
+  }'
+
+# Response includes:
+# {
+#   "language": {"code": "en", "confidence": 0.99},
+#   "sentiment": {"polarity": 0.8, "label": "positive"},
+#   "entities": [{"text": "AI", "label": "TECHNOLOGY"}],
+#   "topics": [{"label": "Technology", "confidence": 0.95}],
+#   "key_phrases": ["AI technology", "development", "efficient"]
+# }
+```
+
+#### Model Management
+
+```bash
+# List available models
+curl http://localhost:8080/ai/models
+
+# Load a specific model
+curl -X POST http://localhost:8080/ai/models/load \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "bert-base-uncased",
+    "path": "/models/bert-base-uncased.onnx",
+    "config": {
+      "batch_size": 16,
+      "max_tokens": 512,
+      "pooling_strategy": "cls"
+    }
+  }'
+
+# Get model health status
+curl http://localhost:8080/ai/models/bert-base-uncased/health
+```
+
 ### API Documentation
 
 When the server is running, you can access interactive API documentation at:
@@ -126,6 +218,18 @@ When the server is running, you can access interactive API documentation at:
 - **Persistence**: Pluggable storage backends (Memory, BoltDB, BadgerDB)
 - **WAL**: Write-ahead logging for durability
 - **API Server**: RESTful HTTP server with JSON API and OpenAPI/Swagger documentation
+
+### 🤖 AI Components (NEW)
+
+- **ONNX Runtime Engine**: Production-ready embedding inference with support for transformer models
+- **Model Manager**: Lifecycle management for embedding models with health monitoring
+- **Content Analyzer**: Advanced text processing pipeline including:
+  - **Language Detector**: Multi-language text identification
+  - **Sentiment Analyzer**: Emotion and opinion analysis
+  - **Entity Extractor**: Named entity recognition (NER)
+  - **Topic Modeler**: Automatic topic classification
+  - **Key Phrase Extractor**: Important phrase identification
+- **Auto-Embedding API**: Seamless text-to-vector conversion with model selection
 
 ### Storage Options
 
@@ -259,13 +363,27 @@ MIT License - see LICENSE file for details
 
 ## Roadmap
 
-- [ ] Prometheus metrics integration
-- [ ] Range queries and hybrid search
-- [ ] Distributed clustering support
-- [ ] GPU acceleration for similarity search
-- [ ] Additional index types (IVF, LSH)
-- [ ] GraphQL API
-- [ ] Python and JavaScript client SDKs
+### ✅ **Recently Completed**
+- [x] **ONNX Runtime Integration**: Production-ready embedding inference
+- [x] **Auto-Embedding API**: Automatic vector generation from text
+- [x] **Content Analysis Pipeline**: Sentiment, entities, topics, language detection
+- [x] **Model Management**: BERT, RoBERTa, Sentence Transformers support
+- [x] **Advanced Text Processing**: Key phrase extraction and text segmentation
+
+### 🚧 **In Progress**
+- [ ] **BM25 Text Search Engine**: Traditional full-text search capabilities
+- [ ] **Hybrid Search Fusion**: Combine vector and text search with intelligent ranking
+
+### 🔮 **Future Plans**
+- [ ] **Multi-Modal Support**: Image and audio embedding support
+- [ ] **Distributed Clustering**: Multi-node deployment with sharding
+- [ ] **GPU Acceleration**: CUDA support for faster similarity search
+- [ ] **Advanced Retrieval**: Re-ranking and query expansion
+- [ ] **Real-time Analytics**: Search analytics and user behavior insights
+- [ ] **Client SDKs**: Python, JavaScript, and Rust client libraries
+- [ ] **Additional Index Types**: IVF, LSH, and custom algorithms
+- [ ] **Prometheus Integration**: Comprehensive metrics and monitoring
+- [ ] **GraphQL API**: Alternative API interface
 
 ## Acknowledgments
 

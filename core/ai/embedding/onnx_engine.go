@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -55,6 +56,18 @@ type InferenceStats struct {
 
 // NewONNXEmbeddingEngine creates a new ONNX-based embedding engine
 func NewONNXEmbeddingEngine(modelPath string, config ai.ModelConfig) (*ONNXEmbeddingEngine, error) {
+	// Validate model file if it's a real path
+	if modelPath != "" {
+		if err := ValidateModelFile(modelPath); err != nil {
+			return nil, fmt.Errorf("model validation failed: %w", err)
+		}
+		
+		// Check model compatibility
+		if err := ValidateModelCompatibility(modelPath); err != nil {
+			return nil, fmt.Errorf("model compatibility check failed: %w", err)
+		}
+	}
+
 	engine := &ONNXEmbeddingEngine{
 		modelName: config.Name,
 		modelPath: modelPath,
@@ -77,26 +90,41 @@ func NewONNXEmbeddingEngine(modelPath string, config ai.ModelConfig) (*ONNXEmbed
 	}
 	engine.tokenizer = tokenizer
 
-	// Load ONNX session (mock implementation for now)
+	// Load ONNX session
 	session, err := engine.createSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
 	}
 	engine.session = session
 
+	// Update model info with file size if available
+	if modelPath != "" {
+		if info, err := os.Stat(modelPath); err == nil {
+			engine.modelInfo.Size = info.Size()
+		}
+	}
+
 	return engine, nil
 }
 
-// createSession creates an ONNX Runtime session (mock implementation)
+// createSession creates an ONNX Runtime session
 func (e *ONNXEmbeddingEngine) createSession() (ONNXSession, error) {
-	// This would normally initialize ONNX Runtime
-	// For now, return a mock session
-	return &MockONNXSession{
-		inputCount:  1,
-		outputCount: 1,
-		inputNames:  []string{"input_ids"},
-		outputNames: []string{"embeddings"},
-	}, nil
+	// Try to create a real ONNX Runtime session
+	session, err := NewRealONNXSession(e.modelPath)
+	if err != nil {
+		// If real session fails, fall back to mock for development/testing
+		if os.Getenv("EMBEDDIX_USE_MOCK_ONNX") == "true" || e.modelPath == "" {
+			return &MockONNXSession{
+				inputCount:  1,
+				outputCount: 1,
+				inputNames:  []string{"input_ids"},
+				outputNames: []string{"embeddings"},
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
+	}
+	
+	return session, nil
 }
 
 // Embed generates embeddings for the given content
@@ -120,16 +148,20 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 		return nil, fmt.Errorf("tokenization failed: %w", err)
 	}
 
-	// Create input tensor
-	inputTensor, err := e.createInputTensor(tokens)
+	// Create input tensors
+	inputs, err := e.createInputTensors(tokens)
 	if err != nil {
 		e.stats.RecordError()
-		return nil, fmt.Errorf("failed to create input tensor: %w", err)
+		return nil, fmt.Errorf("failed to create input tensors: %w", err)
 	}
-	defer inputTensor.Destroy()
+	defer func() {
+		for _, input := range inputs {
+			input.Destroy()
+		}
+	}()
 
 	// Run inference
-	outputs, err := e.session.Run([]ONNXValue{inputTensor})
+	outputs, err := e.session.Run(inputs)
 	if err != nil {
 		e.stats.RecordError()
 		return nil, fmt.Errorf("inference failed: %w", err)
@@ -245,8 +277,45 @@ func (e *ONNXEmbeddingEngine) Close() error {
 	return nil
 }
 
-// createInputTensor creates an ONNX tensor from tokenized input
-func (e *ONNXEmbeddingEngine) createInputTensor(tokens [][]int64) (ONNXValue, error) {
+// createInputTensors creates ONNX tensors from tokenized input, including attention masks
+func (e *ONNXEmbeddingEngine) createInputTensors(tokens [][]int64) ([]ONNXValue, error) {
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("no tokens provided")
+	}
+
+	var inputs []ONNXValue
+
+	// Use the real tensor creation if we have a real session
+	if realSession, ok := e.session.(*RealONNXSession); ok {
+		// Create input_ids tensor
+		if realSession.GetInputCount() > 0 {
+			inputName := realSession.GetInputName(0)
+			inputTensor, err := CreateInputTensorFromTokens(tokens, inputName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create input_ids tensor: %w", err)
+			}
+			inputs = append(inputs, inputTensor)
+		}
+
+		// Create attention_mask tensor if the model expects it
+		if realSession.GetInputCount() > 1 {
+			// Generate attention masks (1 for real tokens, 0 for padding)
+			masks := e.generateAttentionMasks(tokens)
+			maskTensor, err := CreateAttentionMaskTensor(masks)
+			if err != nil {
+				// Clean up previously created tensors
+				for _, input := range inputs {
+					input.Destroy()
+				}
+				return nil, fmt.Errorf("failed to create attention_mask tensor: %w", err)
+			}
+			inputs = append(inputs, maskTensor)
+		}
+
+		return inputs, nil
+	}
+
+	// Fallback to mock tensor for mock sessions
 	batchSize := len(tokens)
 	seqLen := len(tokens[0]) // Assuming all sequences have same length after padding
 
@@ -257,15 +326,57 @@ func (e *ONNXEmbeddingEngine) createInputTensor(tokens [][]int64) (ONNXValue, er
 	}
 
 	// Create mock tensor
-	return &MockONNXTensor{
+	mockTensor := &MockONNXTensor{
 		data:  flatTokens,
 		shape: []int64{int64(batchSize), int64(seqLen)},
-	}, nil
+	}
+
+	return []ONNXValue{mockTensor}, nil
+}
+
+// generateAttentionMasks creates attention masks for the tokenized input
+func (e *ONNXEmbeddingEngine) generateAttentionMasks(tokens [][]int64) [][]int64 {
+	masks := make([][]int64, len(tokens))
+	
+	for i, seq := range tokens {
+		mask := make([]int64, len(seq))
+		for j, token := range seq {
+			if token != 0 { // Assuming 0 is the padding token
+				mask[j] = 1
+			} else {
+				mask[j] = 0
+			}
+		}
+		masks[i] = mask
+	}
+	
+	return masks
 }
 
 // extractEmbeddings extracts embeddings from ONNX output tensor
 func (e *ONNXEmbeddingEngine) extractEmbeddings(output ONNXValue) ([][]float32, error) {
-	// Get output as float32 slice
+	// Use real extraction if we have a real tensor
+	if realTensor, ok := output.(*RealONNXTensor); ok {
+		// Use the configured pooling strategy, defaulting to CLS token
+		poolingStrategy := e.config.PoolingStrategy
+		if poolingStrategy == "" {
+			poolingStrategy = "cls" // Default to CLS token pooling
+		}
+		
+		embeddings, err := ExtractEmbeddingsFromTensor(realTensor, poolingStrategy)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update model info with discovered dimension
+		if len(embeddings) > 0 && e.modelInfo.Dimension == 0 {
+			e.modelInfo.Dimension = len(embeddings[0])
+		}
+
+		return embeddings, nil
+	}
+
+	// Fallback to mock extraction for mock tensors
 	data := output.GetData().([]float32)
 	shape := output.GetShape()
 

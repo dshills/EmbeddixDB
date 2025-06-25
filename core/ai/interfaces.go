@@ -50,6 +50,7 @@ type ModelConfig struct {
 	NumThreads          int           `json:"num_threads"`
 	NormalizeEmbeddings bool          `json:"normalize_embeddings"`
 	MaxTokens           int           `json:"max_tokens"`
+	PoolingStrategy     string        `json:"pooling_strategy"` // cls, mean, max
 }
 
 // HybridSearchEngine combines vector and text search capabilities

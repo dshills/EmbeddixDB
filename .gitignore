@@ -1,0 +1,74 @@
+.idea
+.run
+vendor
+dist
+.DS_Store
+*.swp
+*.log
+node_modules/
+
+# compiled app
+alas
+
+# Environment
+.env
+.env.*
+
+# tags
+tags
+
+# air
+.air.toml
+
+# CLAUDE
+CLAUDE.local.md
+settings.local.json
+
+__debug_bin*
+.gosec-results.json
+
+# Multi-module support for local development only.
+# https://go.dev/doc/tutorial/workspaces
+go.work
+go.work.sum
+
+# Test Reports
+c.out
+unit-tests.xml
+coverage.html
+godog.json
+
+# Test Output
+test/testdata/*/output
+
+# Profiling
+*.out
+
+# LLVM generated files
+*.ll
+*.bc
+*.o
+
+# locally built binaries
+bin/
+lib/
+build/
+tmp/
+
+# AWS CDK outputs
+.aws/cdk/cdk.context.json
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+:memory:
+
+# Log files
+*.log
+server*.log
+
+# Temporary files
+*.tmp
+*.temp
+

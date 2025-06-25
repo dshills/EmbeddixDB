@@ -72,3 +72,4 @@ server*.log
 *.tmp
 *.temp
 
+EmbeddixDB

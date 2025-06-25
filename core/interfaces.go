@@ -16,6 +16,7 @@ type VectorStore interface {
 	UpdateVector(ctx context.Context, collection string, vec Vector) error
 	DeleteVector(ctx context.Context, collection, id string) error
 	Search(ctx context.Context, collection string, req SearchRequest) ([]SearchResult, error)
+	RangeSearch(ctx context.Context, collection string, req RangeSearchRequest) (RangeSearchResult, error)
 	
 	// Collection operations
 	CreateCollection(ctx context.Context, spec Collection) error
@@ -35,6 +36,9 @@ type Index interface {
 	
 	// Search for similar vectors
 	Search(query []float32, k int, filter map[string]string) ([]SearchResult, error)
+	
+	// RangeSearch finds all vectors within a distance threshold
+	RangeSearch(query []float32, radius float32, filter map[string]string, limit int) ([]SearchResult, error)
 	
 	// Remove a vector from the index
 	Delete(id string) error

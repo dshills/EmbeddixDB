@@ -120,7 +120,76 @@ func (h *HNSWIndex) Search(query []float32, k int, filter map[string]string) ([]
 	}
 	
 	return results[:k], nil
-}// Delete removes a vector from the HNSW index
+}// RangeSearch finds all vectors within a distance threshold
+func (h *HNSWIndex) RangeSearch(query []float32, radius float32, filter map[string]string, limit int) ([]core.SearchResult, error) {
+	if len(query) != h.graph.dimension {
+		return nil, fmt.Errorf("query dimension %d does not match index dimension %d", 
+			len(query), h.graph.dimension)
+	}
+	
+	h.graph.mu.RLock()
+	defer h.graph.mu.RUnlock()
+	
+	if h.graph.size == 0 {
+		return []core.SearchResult{}, nil
+	}
+	
+	// Use a larger ef for range search to ensure we explore enough of the graph
+	ef := h.graph.config.EfSearch * 2
+	if ef < 100 {
+		ef = 100
+	}
+	
+	// Navigate from entry point to layer 0
+	entryPoints := []*HNSWNode{h.graph.entryPoint}
+	
+	// Search from top level down to level 1
+	for level := h.graph.entryPoint.Level; level > 0; level-- {
+		entryPoints = h.searchLayer(query, entryPoints, 1, level)
+	}
+	
+	// Search layer 0 with expanded ef
+	candidates := h.searchLayer(query, entryPoints, ef, 0)
+	
+	// Collect all results within radius
+	var results []core.SearchResult
+	visited := make(map[string]bool)
+	
+	// Process initial candidates
+	for _, node := range candidates {
+		if visited[node.ID] {
+			continue
+		}
+		visited[node.ID] = true
+		
+		distance, err := core.CalculateDistance(query, node.Vector.Values, h.graph.distanceMetric)
+		if err != nil {
+			continue
+		}
+		
+		if distance <= radius && matchesFilter(node.Vector.Metadata, filter) {
+			results = append(results, core.SearchResult{
+				ID:       node.ID,
+				Score:    distance,
+				Vector:   &node.Vector,
+				Metadata: node.Vector.Metadata,
+			})
+			
+			if limit > 0 && len(results) >= limit {
+				break
+			}
+		}
+	}
+	
+	// Sort results by distance
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score < results[j].Score
+	})
+	
+	return results, nil
+}
+
+// Delete removes a vector from the HNSW index
 func (h *HNSWIndex) Delete(id string) error {
 	h.graph.mu.Lock()
 	defer h.graph.mu.Unlock()

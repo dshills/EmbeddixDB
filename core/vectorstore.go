@@ -170,7 +170,64 @@ func (vs *VectorStoreImpl) Search(ctx context.Context, collection string, req Se
 	}
 	
 	return results, nil
-}// DeleteCollection removes a collection and all its vectors
+}// RangeSearch performs range query to find all vectors within a distance threshold
+func (vs *VectorStoreImpl) RangeSearch(ctx context.Context, collection string, req RangeSearchRequest) (RangeSearchResult, error) {
+	// Get collection to validate search request
+	coll, err := vs.persistence.LoadCollection(ctx, collection)
+	if err != nil {
+		return RangeSearchResult{}, fmt.Errorf("collection %s not found: %w", collection, err)
+	}
+	
+	// Validate query dimension
+	if len(req.Query) != coll.Dimension {
+		return RangeSearchResult{}, fmt.Errorf("query dimension %d does not match collection dimension %d", 
+			len(req.Query), coll.Dimension)
+	}
+	
+	// Validate radius
+	if req.Radius < 0 {
+		return RangeSearchResult{}, fmt.Errorf("radius must be non-negative, got %f", req.Radius)
+	}
+	
+	// Use index for range search
+	vs.mu.RLock()
+	index, exists := vs.indexes[collection]
+	vs.mu.RUnlock()
+	
+	if !exists {
+		return RangeSearchResult{}, fmt.Errorf("index not found for collection %s", collection)
+	}
+	
+	// Perform range search
+	results, err := index.RangeSearch(req.Query, req.Radius, req.Filter, req.Limit)
+	if err != nil {
+		return RangeSearchResult{}, fmt.Errorf("range search failed: %w", err)
+	}
+	
+	// Include full vectors if requested
+	if req.IncludeVectors {
+		for i := range results {
+			if results[i].Vector == nil {
+				vector, err := vs.persistence.LoadVector(ctx, collection, results[i].ID)
+				if err != nil {
+					continue // Skip if vector not found
+				}
+				results[i].Vector = &vector
+			}
+		}
+	}
+	
+	// Build result
+	limited := req.Limit > 0 && len(results) >= req.Limit
+	
+	return RangeSearchResult{
+		Results: results,
+		Count:   len(results),
+		Limited: limited,
+	}, nil
+}
+
+// DeleteCollection removes a collection and all its vectors
 func (vs *VectorStoreImpl) DeleteCollection(ctx context.Context, name string) error {
 	// Remove index
 	vs.mu.Lock()

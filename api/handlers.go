@@ -542,3 +542,76 @@ func (s *Server) handleCollectionStats(w http.ResponseWriter, r *http.Request) {
 
 	s.respondWithError(w, http.StatusNotFound, "Collection not found")
 }
+
+// Range search request/response types
+type RangeSearchRequest struct {
+	Query          []float32         `json:"query"`
+	Radius         float32           `json:"radius"`
+	Filter         map[string]string `json:"filter,omitempty"`
+	IncludeVectors bool              `json:"include_vectors"`
+	Limit          int               `json:"limit,omitempty"`
+}
+
+type RangeSearchResponse struct {
+	Results []SearchResult `json:"results"`
+	Count   int            `json:"count"`
+	Limited bool           `json:"limited"`
+}
+
+// handleRangeSearch performs range query to find vectors within a distance threshold
+func (s *Server) handleRangeSearch(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	collectionName := vars["collection"]
+
+	var req RangeSearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if len(req.Query) == 0 {
+		s.respondWithError(w, http.StatusBadRequest, "Query vector is required")
+		return
+	}
+	if req.Radius < 0 {
+		s.respondWithError(w, http.StatusBadRequest, "Radius must be non-negative")
+		return
+	}
+
+	// Convert to core request
+	rangeReq := core.RangeSearchRequest{
+		Query:          req.Query,
+		Radius:         req.Radius,
+		Filter:         req.Filter,
+		IncludeVectors: req.IncludeVectors,
+		Limit:          req.Limit,
+	}
+
+	ctx := context.Background()
+	result, err := s.vectorStore.RangeSearch(ctx, collectionName, rangeReq)
+	if err != nil {
+		s.respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Convert results
+	response := RangeSearchResponse{
+		Results: make([]SearchResult, len(result.Results)),
+		Count:   result.Count,
+		Limited: result.Limited,
+	}
+
+	for i, res := range result.Results {
+		response.Results[i] = SearchResult{
+			ID:       res.ID,
+			Score:    res.Score,
+			Metadata: res.Metadata,
+		}
+		if req.IncludeVectors && res.Vector != nil {
+			response.Results[i].Vector = res.Vector.Values
+		}
+	}
+
+	s.respondWithJSON(w, http.StatusOK, response)
+}

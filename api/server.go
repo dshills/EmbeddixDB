@@ -77,6 +77,7 @@ func (s *Server) setupRoutes() {
 	// Search endpoints
 	s.router.HandleFunc("/collections/{collection}/search", s.handleSearch).Methods("POST")
 	s.router.HandleFunc("/collections/{collection}/search/batch", s.handleBatchSearch).Methods("POST")
+	s.router.HandleFunc("/collections/{collection}/search/range", s.handleRangeSearch).Methods("POST")
 
 	// Stats endpoints
 	s.router.HandleFunc("/stats", s.handleStats).Methods("GET")

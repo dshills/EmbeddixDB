@@ -98,6 +98,63 @@ func (f *FlatIndex) Delete(id string) error {
 	return nil
 }
 
+// RangeSearch finds all vectors within a distance threshold
+func (f *FlatIndex) RangeSearch(query []float32, radius float32, filter map[string]string, limit int) ([]core.SearchResult, error) {
+	if len(query) != f.dimension {
+		return nil, fmt.Errorf("query dimension %d does not match index dimension %d", len(query), f.dimension)
+	}
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	results := make([]core.SearchResult, 0)
+	
+	// Check all vectors
+	for id, vec := range f.vectors {
+		// Apply metadata filter if provided
+		if filter != nil && len(filter) > 0 {
+			match := true
+			for key, value := range filter {
+				if vec.Metadata[key] != value {
+					match = false
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+
+		// Calculate distance
+		distance, err := core.CalculateDistance(query, vec.Values, f.distanceMetric)
+		if err != nil {
+			continue
+		}
+
+		// Check if within radius
+		if distance <= radius {
+			results = append(results, core.SearchResult{
+				ID:       id,
+				Score:    distance,
+				Vector:   &vec,
+				Metadata: vec.Metadata,
+			})
+
+			// Check limit
+			if limit > 0 && len(results) >= limit {
+				break
+			}
+		}
+	}
+
+	// Sort results by distance
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score < results[j].Score
+	})
+
+	return results, nil
+}
+
 // Rebuild is a no-op for flat index (no structure to rebuild)
 func (f *FlatIndex) Rebuild() error {
 	return nil

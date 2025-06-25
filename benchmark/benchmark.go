@@ -118,6 +118,14 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 	}
 	results = append(results, updateResult)
 	
+	// Benchmark range searches
+	fmt.Printf("Running range search benchmark...\n")
+	rangeResult, err := b.benchmarkRangeSearch(ctx, collectionName)
+	if err != nil {
+		return nil, err
+	}
+	results = append(results, rangeResult)
+	
 	return results, nil
 }
 
@@ -279,6 +287,42 @@ func (b *Benchmark) benchmarkUpdates(ctx context.Context, collection string, vec
 	totalTime := time.Since(start)
 	
 	return b.calculateResult("Update Vector", totalTime, len(vectors), latencies), nil
+}
+
+// benchmarkRangeSearch measures range search performance
+func (b *Benchmark) benchmarkRangeSearch(ctx context.Context, collection string) (BenchmarkResult, error) {
+	queries := b.generateVectors(b.config.NumQueries)
+	latencies := make([]time.Duration, 0, len(queries))
+	totalFound := 0
+	
+	// Use a moderate radius for benchmarking
+	radius := float32(0.5)
+	
+	start := time.Now()
+	for _, query := range queries {
+		searchReq := core.RangeSearchRequest{
+			Query:          query.Values,
+			Radius:         radius,
+			IncludeVectors: false,
+		}
+		
+		opStart := time.Now()
+		result, err := b.store.RangeSearch(ctx, collection, searchReq)
+		if err != nil {
+			return BenchmarkResult{}, fmt.Errorf("range search failed: %w", err)
+		}
+		latencies = append(latencies, time.Since(opStart))
+		totalFound += result.Count
+	}
+	totalTime := time.Since(start)
+	
+	result := b.calculateResult("Range Search (r=0.5)", totalTime, len(queries), latencies)
+	
+	// Log average results found
+	avgFound := float64(totalFound) / float64(len(queries))
+	fmt.Printf("   Average vectors found per query: %.2f\n", avgFound)
+	
+	return result, nil
 }
 
 // generateVectors creates random test vectors

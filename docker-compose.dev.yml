@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  embeddixdb-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: embeddixdb_dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/vendor
+      - /app/tmp
+    environment:
+      - GO_ENV=development
+      - AIR_LOG_LEVEL=debug
+    networks:
+      - embeddix_dev_network
+    command: air -c .air.toml
+
+  # Test database for development
+  test-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: embeddixdb_test_client
+    volumes:
+      - .:/app
+    depends_on:
+      - embeddixdb-dev
+    entrypoint: ["go", "run", "./examples/api_client/main.go"]
+    profiles:
+      - test
+    networks:
+      - embeddix_dev_network
+
+networks:
+  embeddix_dev_network:
+    driver: bridge

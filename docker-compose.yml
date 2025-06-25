@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  embeddixdb:
+    build: .
+    image: embeddixdb:latest
+    container_name: embeddixdb
+    ports:
+      - "8080:8080"
+    volumes:
+      - embeddix_data:/app/data
+    environment:
+      - EMBEDDIX_LOG_LEVEL=info
+    command: ["-host", "0.0.0.0", "-port", "8080", "-db", "bolt", "-path", "/app/data/embeddix.db", "-wal"]
+    restart: unless-stopped
+    networks:
+      - embeddix_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a separate benchmark container
+  benchmark:
+    build: .
+    image: embeddixdb:latest
+    container_name: embeddixdb_benchmark
+    entrypoint: ["./embeddixdb"]
+    command: ["benchmark", "-vectors", "10000", "-queries", "1000", "-db", "memory"]
+    depends_on:
+      embeddixdb:
+        condition: service_healthy
+    profiles:
+      - benchmark
+    networks:
+      - embeddix_network
+
+  # Optional: Prometheus for metrics (when we add metrics support)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    profiles:
+      - monitoring
+    networks:
+      - embeddix_network
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+    networks:
+      - embeddix_network
+
+volumes:
+  embeddix_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  embeddix_network:
+    driver: bridge

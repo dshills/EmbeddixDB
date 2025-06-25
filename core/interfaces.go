@@ -11,7 +11,9 @@ type IndexFactory interface {
 type VectorStore interface {
 	// Vector operations
 	AddVector(ctx context.Context, collection string, vec Vector) error
+	AddVectorsBatch(ctx context.Context, collection string, vectors []Vector) error
 	GetVector(ctx context.Context, collection, id string) (Vector, error)
+	UpdateVector(ctx context.Context, collection string, vec Vector) error
 	DeleteVector(ctx context.Context, collection, id string) error
 	Search(ctx context.Context, collection string, req SearchRequest) ([]SearchResult, error)
 	
@@ -20,6 +22,7 @@ type VectorStore interface {
 	DeleteCollection(ctx context.Context, name string) error
 	ListCollections(ctx context.Context) ([]Collection, error)
 	GetCollection(ctx context.Context, name string) (Collection, error)
+	GetCollectionSize(ctx context.Context, collection string) (int, error)
 	
 	// Lifecycle
 	Close() error

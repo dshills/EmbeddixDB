@@ -13,11 +13,13 @@ type Vector struct {
 
 // Collection represents a named grouping of vectors with configuration
 type Collection struct {
-	Name      string    `json:"name"`
-	Dimension int       `json:"dimension"`
-	IndexType string    `json:"index_type"` // "flat", "hnsw"
-	Distance  string    `json:"distance"`   // "cosine", "l2", "dot"
-	CreatedAt time.Time `json:"created_at"`
+	Name      string                 `json:"name"`
+	Dimension int                    `json:"dimension"`
+	IndexType string                 `json:"index_type"` // "flat", "hnsw"
+	Distance  string                 `json:"distance"`   // "cosine", "l2", "dot"
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 // SearchRequest represents a vector search query

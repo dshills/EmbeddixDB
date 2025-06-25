@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Go
+vendor/
+*.test
+*.out
+coverage.html
+c.out
+
+# Binaries
+bin/
+dist/
+embeddixdb
+cmd/server/server
+cmd/benchmark/benchmark
+
+# Development
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.air.toml
+tmp/
+
+# Data
+data/
+*.db
+*.db-journal
+*.db-wal
+
+# Documentation
+*.md
+docs/
+examples/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Testing
+*_test.go
+testdata/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

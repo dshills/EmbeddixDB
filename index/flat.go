@@ -1,6 +1,7 @@
 package index
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -112,6 +113,50 @@ func (f *FlatIndex) Size() int {
 // Type returns the index type
 func (f *FlatIndex) Type() string {
 	return "flat"
+}
+
+// flatIndexState represents the serializable state of a FlatIndex
+type flatIndexState struct {
+	Vectors        map[string]core.Vector   `json:"vectors"`
+	Dimension      int                      `json:"dimension"`
+	DistanceMetric core.DistanceMetric      `json:"distance_metric"`
+}
+
+// Serialize converts the index state to bytes
+func (f *FlatIndex) Serialize() ([]byte, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	
+	// Create a deep copy of vectors to avoid concurrent modification during JSON marshaling
+	vectorsCopy := make(map[string]core.Vector, len(f.vectors))
+	for id, vec := range f.vectors {
+		vectorsCopy[id] = vec
+	}
+	
+	state := flatIndexState{
+		Vectors:        vectorsCopy,
+		Dimension:      f.dimension,
+		DistanceMetric: f.distanceMetric,
+	}
+	
+	return json.Marshal(state)
+}
+
+// Deserialize restores the index state from bytes
+func (f *FlatIndex) Deserialize(data []byte) error {
+	var state flatIndexState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal flat index state: %w", err)
+	}
+	
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	
+	f.vectors = state.Vectors
+	f.dimension = state.Dimension
+	f.distanceMetric = state.DistanceMetric
+	
+	return nil
 }
 
 // matchesFilter checks if vector metadata matches the given filter

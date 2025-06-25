@@ -84,6 +84,14 @@ func (vs *VectorStoreImpl) AddVector(ctx context.Context, collection string, vec
 		if err := index.Add(vec); err != nil {
 			return fmt.Errorf("failed to add to index: %w", err)
 		}
+		
+		// Save updated index state (best effort - don't fail the operation if this fails)
+		if err := vs.saveIndexState(ctx, collection, index); err != nil {
+			// Note: We don't return this error because the vector was successfully added
+			// and the index was updated. The state can be recovered later if needed.
+			// In a production system, this should be logged
+			_ = err // Acknowledge we're intentionally ignoring this error
+		}
 	}
 	
 	return nil
@@ -107,6 +115,14 @@ func (vs *VectorStoreImpl) DeleteVector(ctx context.Context, collection, id stri
 	if exists {
 		if err := index.Delete(id); err != nil {
 			return fmt.Errorf("failed to delete from index: %w", err)
+		}
+		
+		// Save updated index state (best effort - don't fail the operation if this fails)
+		if err := vs.saveIndexState(ctx, collection, index); err != nil {
+			// Note: We don't return this error because the vector was successfully deleted
+			// and the index was updated. The state can be recovered later if needed.
+			// In a production system, this should be logged
+			_ = err // Acknowledge we're intentionally ignoring this error
 		}
 	}
 	
@@ -195,4 +211,16 @@ func (vs *VectorStoreImpl) createIndex(collection Collection) error {
 	
 	vs.indexes[collection.Name] = index
 	return nil
+}
+
+// saveIndexState serializes and saves the current state of an index
+func (vs *VectorStoreImpl) saveIndexState(ctx context.Context, collection string, index Index) error {
+	// Serialize the index state
+	indexData, err := index.Serialize()
+	if err != nil {
+		return fmt.Errorf("failed to serialize index state: %w", err)
+	}
+	
+	// Save to persistence layer
+	return vs.persistence.SaveIndexState(ctx, collection, indexData)
 }

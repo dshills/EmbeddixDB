@@ -13,6 +13,7 @@ type MemoryPersistence struct {
 	mu          sync.RWMutex
 	vectors     map[string]map[string]core.Vector // collection -> id -> vector
 	collections map[string]core.Collection        // collection name -> collection
+	indexStates map[string][]byte                 // collection name -> serialized index state
 }
 
 // NewMemoryPersistence creates a new in-memory persistence layer
@@ -20,6 +21,7 @@ func NewMemoryPersistence() *MemoryPersistence {
 	return &MemoryPersistence{
 		vectors:     make(map[string]map[string]core.Vector),
 		collections: make(map[string]core.Collection),
+		indexStates: make(map[string][]byte),
 	}
 }
 
@@ -160,6 +162,37 @@ func (m *MemoryPersistence) SaveVectorsBatch(ctx context.Context, collection str
 		m.vectors[collection][vec.ID] = vec
 	}
 	
+	return nil
+}
+
+// SaveIndexState stores serialized index state
+func (m *MemoryPersistence) SaveIndexState(ctx context.Context, collection string, indexData []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	m.indexStates[collection] = indexData
+	return nil
+}
+
+// LoadIndexState retrieves serialized index state
+func (m *MemoryPersistence) LoadIndexState(ctx context.Context, collection string) ([]byte, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	indexData, exists := m.indexStates[collection]
+	if !exists {
+		return nil, fmt.Errorf("index state for collection %s not found", collection)
+	}
+	
+	return indexData, nil
+}
+
+// DeleteIndexState removes serialized index state
+func (m *MemoryPersistence) DeleteIndexState(ctx context.Context, collection string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	delete(m.indexStates, collection)
 	return nil
 }
 

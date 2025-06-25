@@ -1,6 +1,7 @@
 package index
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	
@@ -178,4 +179,94 @@ func (h *HNSWIndex) Size() int {
 // Type returns the index type
 func (h *HNSWIndex) Type() string {
 	return "hnsw"
+}
+
+// hnswNodeState represents the serializable state of an HNSW node
+type hnswNodeState struct {
+	ID          string                    `json:"id"`
+	Vector      core.Vector               `json:"vector"`
+	Level       int                       `json:"level"`
+	Connections map[int]map[string]bool   `json:"connections"`
+}
+
+// hnswIndexState represents the serializable state of an HNSW index
+type hnswIndexState struct {
+	Nodes          map[string]hnswNodeState `json:"nodes"`
+	EntryPointID   string                   `json:"entry_point_id"`
+	Config         HNSWConfig               `json:"config"`
+	Dimension      int                      `json:"dimension"`
+	DistanceMetric core.DistanceMetric      `json:"distance_metric"`
+	Size           int                      `json:"size"`
+}
+
+// Serialize converts the HNSW index state to bytes
+func (h *HNSWIndex) Serialize() ([]byte, error) {
+	h.graph.mu.RLock()
+	defer h.graph.mu.RUnlock()
+	
+	// Convert nodes to serializable format
+	nodes := make(map[string]hnswNodeState)
+	for id, node := range h.graph.nodes {
+		nodes[id] = hnswNodeState{
+			ID:          node.ID,
+			Vector:      node.Vector,
+			Level:       node.Level,
+			Connections: node.Connections,
+		}
+	}
+	
+	// Get entry point ID
+	entryPointID := ""
+	if h.graph.entryPoint != nil {
+		entryPointID = h.graph.entryPoint.ID
+	}
+	
+	state := hnswIndexState{
+		Nodes:          nodes,
+		EntryPointID:   entryPointID,
+		Config:         h.graph.config,
+		Dimension:      h.graph.dimension,
+		DistanceMetric: h.graph.distanceMetric,
+		Size:           h.graph.size,
+	}
+	
+	return json.Marshal(state)
+}
+
+// Deserialize restores the HNSW index state from bytes
+func (h *HNSWIndex) Deserialize(data []byte) error {
+	var state hnswIndexState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal HNSW index state: %w", err)
+	}
+	
+	h.graph.mu.Lock()
+	defer h.graph.mu.Unlock()
+	
+	// Rebuild graph structure
+	h.graph.nodes = make(map[string]*HNSWNode)
+	h.graph.config = state.Config
+	h.graph.dimension = state.Dimension
+	h.graph.distanceMetric = state.DistanceMetric
+	h.graph.size = state.Size
+	
+	// Recreate nodes
+	for id, nodeState := range state.Nodes {
+		node := &HNSWNode{
+			ID:          nodeState.ID,
+			Vector:      nodeState.Vector,
+			Level:       nodeState.Level,
+			Connections: nodeState.Connections,
+		}
+		h.graph.nodes[id] = node
+	}
+	
+	// Restore entry point
+	if state.EntryPointID != "" {
+		if node, exists := h.graph.nodes[state.EntryPointID]; exists {
+			h.graph.entryPoint = node
+		}
+	}
+	
+	return nil
 }

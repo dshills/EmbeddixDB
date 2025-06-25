@@ -44,6 +44,12 @@ type Index interface {
 	
 	// Get index type
 	Type() string
+	
+	// Serialize index state to bytes
+	Serialize() ([]byte, error)
+	
+	// Deserialize index state from bytes
+	Deserialize(data []byte) error
 }// Persistence handles durable storage of vectors and collections
 type Persistence interface {
 	// Vector operations
@@ -57,6 +63,11 @@ type Persistence interface {
 	LoadCollection(ctx context.Context, name string) (Collection, error)
 	LoadCollections(ctx context.Context) ([]Collection, error)
 	DeleteCollection(ctx context.Context, name string) error
+	
+	// Index state operations
+	SaveIndexState(ctx context.Context, collection string, indexData []byte) error
+	LoadIndexState(ctx context.Context, collection string) ([]byte, error)
+	DeleteIndexState(ctx context.Context, collection string) error
 	
 	// Batch operations for performance
 	SaveVectorsBatch(ctx context.Context, collection string, vectors []Vector) error

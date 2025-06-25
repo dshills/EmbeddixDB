@@ -1,0 +1,632 @@
+swagger: "2.0"
+info:
+  title: EmbeddixDB API
+  description: |
+    EmbeddixDB is a high-performance vector database for storing and searching embeddings.
+    It supports multiple index types (flat, HNSW), distance metrics (L2, cosine, dot product),
+    and provides both k-nearest neighbor and range search capabilities.
+  version: 1.0.0
+  contact:
+    name: EmbeddixDB Support
+    url: https://github.com/dshills/EmbeddixDB
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+host: localhost:8080
+basePath: /
+schemes:
+  - http
+  - https
+
+consumes:
+  - application/json
+produces:
+  - application/json
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Check server health
+      description: Returns the current health status of the server
+      operationId: getHealth
+      responses:
+        200:
+          description: Server is healthy
+          schema:
+            $ref: "#/definitions/HealthResponse"
+
+  /collections:
+    get:
+      tags:
+        - collections
+      summary: List all collections
+      description: Returns a list of all vector collections in the database
+      operationId: listCollections
+      responses:
+        200:
+          description: List of collections
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/CollectionResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+    
+    post:
+      tags:
+        - collections
+      summary: Create a new collection
+      description: Creates a new vector collection with the specified configuration
+      operationId: createCollection
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/CreateCollectionRequest"
+      responses:
+        201:
+          description: Collection created successfully
+          schema:
+            $ref: "#/definitions/CollectionResponse"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}:
+    get:
+      tags:
+        - collections
+      summary: Get collection details
+      description: Returns detailed information about a specific collection
+      operationId: getCollection
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+      responses:
+        200:
+          description: Collection details
+          schema:
+            $ref: "#/definitions/CollectionResponse"
+        404:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+    
+    delete:
+      tags:
+        - collections
+      summary: Delete a collection
+      description: Permanently deletes a collection and all its vectors
+      operationId: deleteCollection
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+      responses:
+        200:
+          description: Collection deleted successfully
+          schema:
+            $ref: "#/definitions/MessageResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/vectors:
+    post:
+      tags:
+        - vectors
+      summary: Add a vector
+      description: Adds a single vector to the specified collection
+      operationId: addVector
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AddVectorRequest"
+      responses:
+        201:
+          description: Vector added successfully
+          schema:
+            $ref: "#/definitions/VectorResponse"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/vectors/batch:
+    post:
+      tags:
+        - vectors
+      summary: Add vectors in batch
+      description: Adds multiple vectors to the collection in a single operation
+      operationId: addVectorsBatch
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AddVectorRequest"
+      responses:
+        201:
+          description: Vectors added successfully
+          schema:
+            $ref: "#/definitions/BatchAddResponse"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/vectors/{id}:
+    get:
+      tags:
+        - vectors
+      summary: Get a vector
+      description: Retrieves a specific vector by its ID
+      operationId: getVector
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - $ref: "#/parameters/VectorIDPath"
+      responses:
+        200:
+          description: Vector details
+          schema:
+            $ref: "#/definitions/VectorResponse"
+        404:
+          $ref: "#/responses/ErrorResponse"
+    
+    put:
+      tags:
+        - vectors
+      summary: Update a vector
+      description: Updates an existing vector's values and/or metadata
+      operationId: updateVector
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - $ref: "#/parameters/VectorIDPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AddVectorRequest"
+      responses:
+        200:
+          description: Vector updated successfully
+          schema:
+            $ref: "#/definitions/VectorResponse"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+    
+    delete:
+      tags:
+        - vectors
+      summary: Delete a vector
+      description: Removes a vector from the collection
+      operationId: deleteVector
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - $ref: "#/parameters/VectorIDPath"
+      responses:
+        200:
+          description: Vector deleted successfully
+          schema:
+            $ref: "#/definitions/MessageResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/search:
+    post:
+      tags:
+        - search
+      summary: Search for nearest neighbors
+      description: Performs k-nearest neighbor search to find the most similar vectors
+      operationId: searchVectors
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/SearchRequest"
+      responses:
+        200:
+          description: Search results
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/SearchResult"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/search/batch:
+    post:
+      tags:
+        - search
+      summary: Batch search
+      description: Performs multiple k-nearest neighbor searches in a single request
+      operationId: batchSearch
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/SearchRequest"
+      responses:
+        200:
+          description: Batch search results
+          schema:
+            type: array
+            items:
+              type: array
+              items:
+                $ref: "#/definitions/SearchResult"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/search/range:
+    post:
+      tags:
+        - search
+      summary: Range search
+      description: Finds all vectors within a specified distance threshold from the query vector
+      operationId: rangeSearch
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RangeSearchRequest"
+      responses:
+        200:
+          description: Range search results
+          schema:
+            $ref: "#/definitions/RangeSearchResponse"
+        400:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /stats:
+    get:
+      tags:
+        - stats
+      summary: Get overall statistics
+      description: Returns statistics about all collections and vectors in the database
+      operationId: getStats
+      responses:
+        200:
+          description: Overall statistics
+          schema:
+            $ref: "#/definitions/StatsResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+  /collections/{collection}/stats:
+    get:
+      tags:
+        - stats
+      summary: Get collection statistics
+      description: Returns statistics about a specific collection
+      operationId: getCollectionStats
+      parameters:
+        - $ref: "#/parameters/CollectionPath"
+      responses:
+        200:
+          description: Collection statistics
+          schema:
+            $ref: "#/definitions/CollectionStats"
+        404:
+          $ref: "#/responses/ErrorResponse"
+        500:
+          $ref: "#/responses/ErrorResponse"
+
+parameters:
+  CollectionPath:
+    name: collection
+    in: path
+    description: The name of the collection
+    required: true
+    type: string
+    example: product_embeddings
+  
+  VectorIDPath:
+    name: id
+    in: path
+    description: The ID of the vector
+    required: true
+    type: string
+    example: product_123
+
+responses:
+  ErrorResponse:
+    description: Error response
+    schema:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid request parameters"
+
+definitions:
+  HealthResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: healthy
+      timestamp:
+        type: string
+        format: date-time
+      version:
+        type: string
+        example: 1.0.0
+
+  CreateCollectionRequest:
+    type: object
+    required:
+      - name
+      - dimension
+    properties:
+      name:
+        type: string
+        description: Unique name for the collection
+        example: product_embeddings
+      dimension:
+        type: integer
+        description: Dimension of vectors in this collection
+        minimum: 1
+        example: 384
+      index_type:
+        type: string
+        description: Type of index to use (default: flat)
+        enum: [flat, hnsw]
+        example: hnsw
+      distance:
+        type: string
+        description: Distance metric to use (default: cosine)
+        enum: [l2, cosine, dot]
+        example: cosine
+      metadata:
+        type: object
+        description: Optional metadata for the collection
+        example:
+          description: "Product embeddings from BERT model"
+          model: "bert-base-uncased"
+
+  CollectionResponse:
+    type: object
+    properties:
+      name:
+        type: string
+      dimension:
+        type: integer
+      index_type:
+        type: string
+      distance:
+        type: string
+      metadata:
+        type: object
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+
+  AddVectorRequest:
+    type: object
+    required:
+      - id
+      - values
+    properties:
+      id:
+        type: string
+        description: Unique identifier for the vector
+        example: product_123
+      values:
+        type: array
+        items:
+          type: number
+          format: float
+        description: Vector values
+        example: [0.1, 0.2, 0.3]
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+        description: Optional metadata
+        example:
+          category: electronics
+          price: "99.99"
+
+  VectorResponse:
+    type: object
+    properties:
+      id:
+        type: string
+      values:
+        type: array
+        items:
+          type: number
+          format: float
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+
+  SearchRequest:
+    type: object
+    required:
+      - query
+    properties:
+      query:
+        type: array
+        items:
+          type: number
+          format: float
+        description: Query vector
+        example: [0.1, 0.2, 0.3]
+      top_k:
+        type: integer
+        description: Number of nearest neighbors to return (default: 10)
+        minimum: 1
+        maximum: 1000
+        example: 10
+      filter:
+        type: object
+        additionalProperties:
+          type: string
+        description: Optional metadata filters
+        example:
+          category: electronics
+      include_vectors:
+        type: boolean
+        description: Whether to include full vector values in results
+        example: false
+
+  SearchResult:
+    type: object
+    properties:
+      id:
+        type: string
+        example: product_123
+      score:
+        type: number
+        format: float
+        description: Distance/similarity score
+        example: 0.95
+      vector:
+        type: array
+        items:
+          type: number
+          format: float
+        description: Vector values (only if include_vectors=true)
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+
+  RangeSearchRequest:
+    type: object
+    required:
+      - query
+      - radius
+    properties:
+      query:
+        type: array
+        items:
+          type: number
+          format: float
+        description: Query vector
+        example: [0.1, 0.2, 0.3]
+      radius:
+        type: number
+        format: float
+        description: Maximum distance threshold
+        minimum: 0
+        example: 0.5
+      filter:
+        type: object
+        additionalProperties:
+          type: string
+        description: Optional metadata filters
+      include_vectors:
+        type: boolean
+        description: Whether to include full vector values in results
+        example: false
+      limit:
+        type: integer
+        description: Optional limit on number of results (0 = no limit)
+        minimum: 0
+        example: 100
+
+  RangeSearchResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: "#/definitions/SearchResult"
+      count:
+        type: integer
+        description: Total number of results found
+        example: 42
+      limited:
+        type: boolean
+        description: True if results were limited
+        example: false
+
+  BatchAddResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        example: "Vectors added successfully"
+      count:
+        type: integer
+        description: Number of vectors added
+        example: 100
+
+  MessageResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        example: "Operation completed successfully"
+
+  StatsResponse:
+    type: object
+    properties:
+      total_collections:
+        type: integer
+        example: 5
+      total_vectors:
+        type: integer
+        example: 1000000
+      collections:
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/CollectionStats"
+
+  CollectionStats:
+    type: object
+    properties:
+      vector_count:
+        type: integer
+        example: 250000
+      index_type:
+        type: string
+        example: hnsw
+      dimension:
+        type: integer
+        example: 384
+
+tags:
+  - name: health
+    description: Health check endpoints
+  - name: collections
+    description: Collection management operations
+  - name: vectors
+    description: Vector CRUD operations
+  - name: search
+    description: Vector search operations
+  - name: stats
+    description: Statistics and metrics

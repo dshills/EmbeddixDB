@@ -88,6 +88,7 @@ curl -X POST http://localhost:8080/collections/documents/vectors/batch \
 ### Search for Similar Vectors
 
 ```bash
+# K-nearest neighbor search
 curl -X POST http://localhost:8080/collections/documents/search \
   -H "Content-Type: application/json" \
   -d '{
@@ -96,7 +97,25 @@ curl -X POST http://localhost:8080/collections/documents/search \
     "filter": {"category": "technology"},
     "include_vectors": false
   }'
+
+# Range search (find all vectors within radius)
+curl -X POST http://localhost:8080/collections/documents/search/range \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": [0.15, 0.25, ...],
+    "radius": 0.5,
+    "filter": {"category": "technology"},
+    "limit": 100
+  }'
 ```
+
+### API Documentation
+
+When the server is running, you can access interactive API documentation at:
+
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **OpenAPI Spec**: http://localhost:8080/swagger.yaml
 
 ## Architecture
 
@@ -106,7 +125,7 @@ curl -X POST http://localhost:8080/collections/documents/search \
 - **Index**: Pluggable index implementations (Flat, HNSW)
 - **Persistence**: Pluggable storage backends (Memory, BoltDB, BadgerDB)
 - **WAL**: Write-ahead logging for durability
-- **API Server**: RESTful HTTP server with JSON API
+- **API Server**: RESTful HTTP server with JSON API and OpenAPI/Swagger documentation
 
 ### Storage Options
 

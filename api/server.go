@@ -82,6 +82,10 @@ func (s *Server) setupRoutes() {
 	// Stats endpoints
 	s.router.HandleFunc("/stats", s.handleStats).Methods("GET")
 	s.router.HandleFunc("/collections/{collection}/stats", s.handleCollectionStats).Methods("GET")
+	
+	// Documentation endpoints
+	s.setupSwaggerUI()
+	s.setupReDoc()
 }
 
 // Start starts the HTTP server
@@ -97,6 +101,10 @@ func (s *Server) Start() error {
 	}
 
 	fmt.Printf("Starting EmbeddixDB API server on %s\n", addr)
+	fmt.Printf("API Documentation available at:\n")
+	fmt.Printf("  - Swagger UI: http://%s/docs\n", addr)
+	fmt.Printf("  - ReDoc: http://%s/redoc\n", addr)
+	fmt.Printf("  - OpenAPI Spec: http://%s/swagger.yaml\n", addr)
 	return s.httpServer.ListenAndServe()
 }
 

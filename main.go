@@ -24,11 +24,11 @@ func main() {
 	store := core.NewVectorStore(memPersistence, indexFactory)
 	defer store.Close()
 	
-	// Create a collection
+	// Create a collection with HNSW index
 	collection := core.Collection{
 		Name:      "documents",
 		Dimension: 3,
-		IndexType: "flat",
+		IndexType: "hnsw",
 		Distance:  "cosine",
 		CreatedAt: time.Now(),
 	}

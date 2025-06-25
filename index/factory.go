@@ -20,7 +20,8 @@ func (f *DefaultFactory) CreateIndex(indexType string, dimension int, distanceMe
 	case "flat":
 		return NewFlatIndex(dimension, distanceMetric), nil
 	case "hnsw":
-		return nil, fmt.Errorf("hnsw index not yet implemented")
+		config := DefaultHNSWConfig()
+		return NewHNSWIndex(dimension, distanceMetric, config), nil
 	default:
 		return nil, fmt.Errorf("unsupported index type: %s", indexType)
 	}

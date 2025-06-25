@@ -21,19 +21,41 @@ func (f *DefaultFactory) CreatePersistence(config PersistenceConfig) (core.Persi
 		return nil, fmt.Errorf("invalid persistence configuration: %w", err)
 	}
 	
+	// Create the base persistence layer
+	var basePersistence core.Persistence
+	var err error
+	
 	switch config.Type {
 	case PersistenceMemory:
-		return NewMemoryPersistence(), nil
+		basePersistence = NewMemoryPersistence()
 		
 	case PersistenceBolt:
-		return f.createBoltPersistence(config)
+		basePersistence, err = f.createBoltPersistence(config)
+		if err != nil {
+			return nil, err
+		}
 		
 	case PersistenceBadger:
-		return f.createBadgerPersistence(config)
+		basePersistence, err = f.createBadgerPersistence(config)
+		if err != nil {
+			return nil, err
+		}
 		
 	default:
 		return nil, fmt.Errorf("unsupported persistence type: %s", config.Type)
 	}
+	
+	// Wrap with WAL if configured
+	if config.WAL != nil {
+		walPersistence, err := NewWALPersistence(basePersistence, *config.WAL)
+		if err != nil {
+			basePersistence.Close() // Clean up on error
+			return nil, fmt.Errorf("failed to create WAL persistence: %w", err)
+		}
+		return walPersistence, nil
+	}
+	
+	return basePersistence, nil
 }
 
 // createBoltPersistence creates a BoltDB persistence with configuration

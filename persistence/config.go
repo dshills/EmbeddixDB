@@ -22,6 +22,9 @@ type PersistenceConfig struct {
 	// Path to database directory/file
 	Path string `json:"path" yaml:"path"`
 	
+	// WAL configuration (optional)
+	WAL *WALConfig `json:"wal,omitempty" yaml:"wal,omitempty"`
+	
 	// Additional options specific to each backend
 	Options map[string]interface{} `json:"options,omitempty" yaml:"options,omitempty"`
 }
@@ -125,13 +128,34 @@ func ValidateConfig(config PersistenceConfig) error {
 	switch config.Type {
 	case PersistenceMemory:
 		// Memory persistence doesn't need a path
-		return nil
+		break
 	case PersistenceBolt, PersistenceBadger:
 		if config.Path == "" {
 			return fmt.Errorf("path is required for %s persistence", config.Type)
 		}
-		return nil
 	default:
 		return fmt.Errorf("unsupported persistence type: %s", config.Type)
 	}
+	
+	// Validate WAL configuration if present
+	if config.WAL != nil {
+		if err := ValidateWALConfig(*config.WAL); err != nil {
+			return fmt.Errorf("invalid WAL configuration: %w", err)
+		}
+	}
+	
+	return nil
+}
+
+// ValidateWALConfig validates a WAL configuration
+func ValidateWALConfig(config WALConfig) error {
+	if config.Path == "" {
+		return fmt.Errorf("WAL path is required")
+	}
+	
+	if config.MaxSize <= 0 {
+		return fmt.Errorf("WAL max size must be positive")
+	}
+	
+	return nil
 }

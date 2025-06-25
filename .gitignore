@@ -64,6 +64,14 @@ tmp/
 *.db-wal
 :memory:
 
+# Demo and test data directories
+data/
+backups/
+exports/
+
+# Example programs (to avoid main function conflicts)
+examples/
+
 # Log files
 *.log
 server*.log

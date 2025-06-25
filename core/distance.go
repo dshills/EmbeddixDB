@@ -89,3 +89,21 @@ func CalculateDistance(a, b []float32, metric DistanceMetric) (float32, error) {
 		return 0, fmt.Errorf("unsupported distance metric: %s", metric)
 	}
 }
+
+// CalculateDistanceOptimized uses SIMD optimizations when available.
+// This function provides vectorized implementations for supported architectures
+// and falls back to scalar implementations otherwise.
+// For dot product, returns negative value so higher values indicate closer similarity.
+func CalculateDistanceOptimized(a, b []float32, metric DistanceMetric) (float32, error) {
+	switch metric {
+	case DistanceCosine:
+		return CosineDistanceSIMD(a, b)
+	case DistanceL2:
+		return EuclideanDistanceSIMD(a, b)
+	case DistanceDot:
+		dot, err := DotProductSIMD(a, b)
+		return -dot, err
+	default:
+		return 0, fmt.Errorf("unsupported distance metric: %s", metric)
+	}
+}

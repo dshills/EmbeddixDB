@@ -72,7 +72,7 @@ func (s *Server) setupSwaggerUI() {
 			http.Error(w, "Failed to load API documentation", http.StatusInternalServerError)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.Write(yamlContent)
 	}).Methods("GET")
@@ -101,14 +101,14 @@ func swaggerYAML() ([]byte, error) {
 		"./swagger.yaml",
 		filepath.Join(".", "api", "swagger.yaml"),
 	}
-	
+
 	for _, path := range paths {
 		data, err := ioutil.ReadFile(path)
 		if err == nil {
 			return data, nil
 		}
 	}
-	
+
 	// If not found, return embedded content as fallback
 	return []byte(embeddedSwaggerYAML), nil
 }

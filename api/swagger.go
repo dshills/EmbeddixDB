@@ -180,25 +180,25 @@ type Collection struct {
 	// required: true
 	// example: product_embeddings
 	Name string `json:"name"`
-	
+
 	// The dimension of vectors in this collection
 	// required: true
 	// minimum: 1
 	// example: 384
 	Dimension int `json:"dimension"`
-	
+
 	// The type of index to use
 	// required: true
 	// enum: flat,hnsw
 	// example: hnsw
 	IndexType string `json:"index_type"`
-	
+
 	// The distance metric to use
 	// required: true
 	// enum: l2,cosine,dot
 	// example: cosine
 	Distance string `json:"distance"`
-	
+
 	// Optional metadata for the collection
 	// example: {"description": "Product embeddings from BERT model"}
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
@@ -211,12 +211,12 @@ type Vector struct {
 	// required: true
 	// example: product_123
 	ID string `json:"id"`
-	
+
 	// The vector values
 	// required: true
 	// example: [0.1, 0.2, 0.3]
 	Values []float32 `json:"values"`
-	
+
 	// Optional metadata for the vector
 	// example: {"category": "electronics", "price": 99.99}
 	Metadata map[string]string `json:"metadata,omitempty"`
@@ -229,18 +229,18 @@ type SearchParams struct {
 	// required: true
 	// example: [0.1, 0.2, 0.3]
 	Query []float32 `json:"query"`
-	
+
 	// The number of nearest neighbors to return
 	// required: true
 	// minimum: 1
 	// maximum: 1000
 	// example: 10
 	TopK int `json:"top_k"`
-	
+
 	// Optional metadata filters
 	// example: {"category": "electronics"}
 	Filter map[string]string `json:"filter,omitempty"`
-	
+
 	// Whether to include the full vector values in results
 	// example: false
 	IncludeVectors bool `json:"include_vectors"`
@@ -253,21 +253,21 @@ type RangeSearchParams struct {
 	// required: true
 	// example: [0.1, 0.2, 0.3]
 	Query []float32 `json:"query"`
-	
+
 	// The maximum distance threshold
 	// required: true
 	// minimum: 0
 	// example: 0.5
 	Radius float32 `json:"radius"`
-	
+
 	// Optional metadata filters
 	// example: {"category": "electronics"}
 	Filter map[string]string `json:"filter,omitempty"`
-	
+
 	// Whether to include the full vector values in results
 	// example: false
 	IncludeVectors bool `json:"include_vectors"`
-	
+
 	// Optional limit on the number of results (0 = no limit)
 	// minimum: 0
 	// example: 100

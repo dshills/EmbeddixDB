@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/dshills/EmbeddixDB/core"
+	"github.com/gorilla/mux"
 )
 
 // Health check response
@@ -29,10 +29,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // Collection request/response types
 type CreateCollectionRequest struct {
-	Name      string `json:"name"`
-	Dimension int    `json:"dimension"`
-	IndexType string `json:"index_type"`
-	Distance  string `json:"distance"`
+	Name      string                 `json:"name"`
+	Dimension int                    `json:"dimension"`
+	IndexType string                 `json:"index_type"`
+	Distance  string                 `json:"distance"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -49,7 +49,7 @@ type CollectionResponse struct {
 // handleListCollections returns all collections
 func (s *Server) handleListCollections(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	
+
 	collections, err := s.vectorStore.ListCollections(ctx)
 	if err != nil {
 		s.respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -176,15 +176,15 @@ func (s *Server) handleDeleteCollection(w http.ResponseWriter, r *http.Request) 
 
 // Vector request/response types
 type AddVectorRequest struct {
-	ID       string                 `json:"id"`
-	Values   []float32              `json:"values"`
-	Metadata map[string]string      `json:"metadata,omitempty"`
+	ID       string            `json:"id"`
+	Values   []float32         `json:"values"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 type VectorResponse struct {
-	ID       string                 `json:"id"`
-	Values   []float32              `json:"values"`
-	Metadata map[string]string      `json:"metadata,omitempty"`
+	ID       string            `json:"id"`
+	Values   []float32         `json:"values"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // handleAddVector adds a single vector
@@ -474,8 +474,8 @@ func (s *Server) handleBatchSearch(w http.ResponseWriter, r *http.Request) {
 
 // Stats response types
 type StatsResponse struct {
-	TotalCollections int                       `json:"total_collections"`
-	TotalVectors     int                       `json:"total_vectors"`
+	TotalCollections int                        `json:"total_collections"`
+	TotalVectors     int                        `json:"total_vectors"`
 	Collections      map[string]CollectionStats `json:"collections"`
 }
 
@@ -488,7 +488,7 @@ type CollectionStats struct {
 // handleStats returns overall statistics
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	
+
 	collections, err := s.vectorStore.ListCollections(ctx)
 	if err != nil {
 		s.respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -520,7 +520,7 @@ func (s *Server) handleCollectionStats(w http.ResponseWriter, r *http.Request) {
 	collectionName := vars["collection"]
 
 	ctx := context.Background()
-	
+
 	collections, err := s.vectorStore.ListCollections(ctx)
 	if err != nil {
 		s.respondWithError(w, http.StatusInternalServerError, err.Error())

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/dshills/EmbeddixDB/core"
 	"github.com/dshills/EmbeddixDB/core/search"
+	"github.com/gorilla/mux"
 )
 
 // Server represents the REST API server
@@ -103,12 +103,12 @@ func (s *Server) setupRoutes() {
 	// Stats endpoints
 	s.router.HandleFunc("/stats", s.handleStats).Methods("GET")
 	s.router.HandleFunc("/collections/{collection}/stats", s.handleCollectionStats).Methods("GET")
-	
+
 	// Feedback and personalization endpoints (if available)
 	if s.personalizedSearchManager != nil || s.feedbackManager != nil {
 		s.RegisterFeedbackRoutes(s.router)
 	}
-	
+
 	// Documentation endpoints
 	s.setupSwaggerUI()
 	s.setupReDoc()
@@ -117,7 +117,7 @@ func (s *Server) setupRoutes() {
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	
+
 	s.httpServer = &http.Server{
 		Addr:         addr,
 		Handler:      s.router,

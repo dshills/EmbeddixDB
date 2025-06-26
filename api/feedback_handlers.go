@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/dshills/EmbeddixDB/core/feedback"
 	"github.com/dshills/EmbeddixDB/core/search"
+	"github.com/gorilla/mux"
 )
 
 // Feedback API request/response types
@@ -21,7 +21,7 @@ type RecordInteractionRequest struct {
 	Query        string                 `json:"query"`
 	DocumentID   string                 `json:"document_id"`
 	CollectionID string                 `json:"collection_id"`
-	Type         string                 `json:"type"` // click, dwell, rating, etc.
+	Type         string                 `json:"type"`  // click, dwell, rating, etc.
 	Value        float64                `json:"value"` // Rating value, dwell time, etc.
 	Position     int                    `json:"position"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
@@ -190,7 +190,7 @@ func (s *Server) handleUpdatePreferences(w http.ResponseWriter, r *http.Request)
 	}
 
 	ctx := context.Background()
-	
+
 	// Get current profile
 	profile, err := s.feedbackManager.ProfileManager.GetProfile(ctx, userID)
 	if err != nil {
@@ -340,18 +340,18 @@ func (s *Server) handleGetQueryCTR(w http.ResponseWriter, r *http.Request) {
 func (s *Server) RegisterFeedbackRoutes(router *mux.Router) {
 	// Interaction recording
 	router.HandleFunc("/api/v1/feedback/interaction", s.handleRecordInteraction).Methods("POST")
-	
+
 	// Session management
 	router.HandleFunc("/api/v1/sessions", s.handleCreateSession).Methods("POST")
 	router.HandleFunc("/api/v1/sessions/{session_id}", s.handleGetSession).Methods("GET")
-	
+
 	// User profiles
 	router.HandleFunc("/api/v1/users/{user_id}/profile", s.handleGetUserProfile).Methods("GET")
 	router.HandleFunc("/api/v1/users/{user_id}/preferences", s.handleUpdatePreferences).Methods("PUT")
-	
+
 	// Personalized search
 	router.HandleFunc("/api/v1/search/personalized", s.handlePersonalizedSearch).Methods("POST")
-	
+
 	// CTR analytics
 	router.HandleFunc("/api/v1/analytics/ctr/report", s.handleGetCTRReport).Methods("GET")
 	router.HandleFunc("/api/v1/analytics/ctr/document/{document_id}", s.handleGetDocumentCTR).Methods("GET")

@@ -30,6 +30,10 @@ go vet ./...
 go mod tidy
 ```
 
+## Code Formatting Guidelines
+
+- Run gofmt -w . often to insure proper formatting
+
 ## Architecture Overview
 
 Based on the specification in `spec/EMBEDDIXDB_SPEC.md`, the project will implement:

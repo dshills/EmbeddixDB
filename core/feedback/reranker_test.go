@@ -11,12 +11,12 @@ import (
 
 func TestContextualReranker(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Create test components
 	collector := NewMemoryCollector()
 	profileManager := NewMemoryProfileManager()
 	learningEngine := NewSimpleLearningEngine()
-	
+
 	reranker := NewContextualReranker(collector, profileManager, learningEngine)
 
 	t.Run("GetFeatures", func(t *testing.T) {
@@ -27,11 +27,11 @@ func TestContextualReranker(t *testing.T) {
 			TextScore:   0.75,
 			Position:    2,
 			Metadata: map[string]interface{}{
-				"view_count":  100.0,
-				"avg_rating":  4.5,
-				"created_at":  time.Now().Add(-24 * time.Hour),
-				"source":      "wikipedia",
-				"topics":      []string{"ai", "machine_learning"},
+				"view_count": 100.0,
+				"avg_rating": 4.5,
+				"created_at": time.Now().Add(-24 * time.Hour),
+				"source":     "wikipedia",
+				"topics":     []string{"ai", "machine_learning"},
 			},
 			CollectionID: "collection1",
 		}
@@ -44,7 +44,7 @@ func TestContextualReranker(t *testing.T) {
 		}
 
 		features := reranker.GetFeatures(result, rerankCtx)
-		
+
 		// Verify basic features
 		assert.Equal(t, 0.8, features["original_score"])
 		assert.Equal(t, 0.85, features["vector_score"])
@@ -52,13 +52,13 @@ func TestContextualReranker(t *testing.T) {
 		assert.InDelta(t, 0.1, features["score_variance"], 0.0001) // Use tolerance for floating point comparison
 		assert.Equal(t, 2.0, features["original_position"])
 		assert.Equal(t, 0.5, features["inverse_position"])
-		
+
 		// Verify metadata features
 		assert.Greater(t, features["document_popularity"], 0.0)
 		assert.Equal(t, 4.5, features["document_rating"])
 		assert.Greater(t, features["document_freshness"], 0.0)
 		assert.Equal(t, 0.9, features["source_authority"]) // wikipedia
-		
+
 		// Verify query features
 		assert.Equal(t, float64(len("machine learning tutorial")), features["query_length"])
 		assert.Greater(t, features["query_complexity"], 0.0)
@@ -93,9 +93,9 @@ func TestContextualReranker(t *testing.T) {
 				VectorScore: 0.55,
 				Position:    3,
 				Metadata: map[string]interface{}{
-					"view_count":  10.0,
-					"avg_rating":  4.0,
-					"created_at":  time.Now(), // Very fresh
+					"view_count": 10.0,
+					"avg_rating": 4.0,
+					"created_at": time.Now(), // Very fresh
 				},
 			},
 		}
@@ -110,12 +110,12 @@ func TestContextualReranker(t *testing.T) {
 		reranked, err := reranker.Rerank(ctx, results, rerankCtx)
 		assert.NoError(t, err)
 		assert.Len(t, reranked, 3)
-		
+
 		// Verify positions are updated
 		for i, result := range reranked {
 			assert.Equal(t, i+1, result.Position)
 		}
-		
+
 		// Doc2 should rank higher due to better metadata
 		assert.NotEqual(t, results[0].ID, reranked[0].ID)
 	})
@@ -124,7 +124,7 @@ func TestContextualReranker(t *testing.T) {
 		// Create a user profile with preferences
 		profile, err := profileManager.CreateProfile(ctx, "user2")
 		require.NoError(t, err)
-		
+
 		// Set topic interests
 		topics := map[string]float64{
 			"ai":         0.9,
@@ -163,7 +163,7 @@ func TestContextualReranker(t *testing.T) {
 
 		reranked, err := reranker.Rerank(ctx, results, rerankCtx)
 		assert.NoError(t, err)
-		
+
 		// Doc2 should rank higher due to user's AI interest
 		assert.Equal(t, "doc2", reranked[0].ID)
 		assert.Greater(t, reranked[0].Score, reranked[1].Score)
@@ -221,7 +221,7 @@ func TestContextualReranker(t *testing.T) {
 
 		reranked, err := reranker.Rerank(ctx, results, rerankCtx)
 		assert.NoError(t, err)
-		
+
 		// Doc2 should rank higher due to session consistency
 		assert.Equal(t, "doc2", reranked[0].ID)
 	})
@@ -263,7 +263,7 @@ func TestContextualReranker(t *testing.T) {
 
 		reranked, err := reranker.Rerank(ctx, results, rerankCtx)
 		assert.NoError(t, err)
-		
+
 		// Doc3 might rank higher than doc2 due to diversity
 		// (depends on the exact implementation of diversity penalty)
 		assert.Equal(t, "doc1", reranked[0].ID) // Top result should remain
@@ -295,7 +295,7 @@ func TestContextualReranker(t *testing.T) {
 		// Update model with feedback
 		err := reranker.UpdateModel(ctx, interactions)
 		assert.NoError(t, err)
-		
+
 		// Model should have learned from the feedback
 		// (specific assertions depend on implementation details)
 	})
@@ -330,7 +330,7 @@ func TestContextualReranker(t *testing.T) {
 
 		reranked, err := reranker.Rerank(ctx, results, rerankCtx)
 		assert.NoError(t, err)
-		
+
 		// New doc should get temporal boost
 		// The exact ranking depends on boost magnitude
 		assert.Len(t, reranked, 2)
@@ -380,7 +380,7 @@ func TestLearningEngine(t *testing.T) {
 		signals, err := engine.GenerateLearningSignals(ctx, interactions)
 		assert.NoError(t, err)
 		assert.Greater(t, len(signals), 0)
-		
+
 		// Verify pairwise preferences were generated
 		for _, signal := range signals {
 			assert.NotEmpty(t, signal.Features)
@@ -417,7 +417,7 @@ func TestLearningEngine(t *testing.T) {
 	t.Run("GetClickProbability", func(t *testing.T) {
 		// Create fresh engine to avoid contamination from other tests
 		freshEngine := NewSimpleLearningEngine()
-		
+
 		// Get click probabilities for different positions
 		prob1, err := freshEngine.GetClickProbability(ctx, 1, nil)
 		assert.NoError(t, err)
@@ -469,7 +469,7 @@ func TestLearningEngine(t *testing.T) {
 		newEngine := NewSimpleLearningEngine()
 		err = newEngine.ImportModel(ctx, modelData)
 		assert.NoError(t, err)
-		
+
 		// Verify imported model works
 		prob, err := newEngine.GetClickProbability(ctx, 1, nil)
 		assert.NoError(t, err)
@@ -518,7 +518,7 @@ func TestFeedbackAnalyzer(t *testing.T) {
 
 		satisfied, confidence = analyzer.AnalyzeQuerySatisfaction(ctx, unsatisfiedInteractions)
 		assert.False(t, satisfied)
-		
+
 		// Negative feedback
 		negativeInteractions := []*Interaction{
 			{

@@ -15,15 +15,15 @@ func TestMemoryCTRTracker(t *testing.T) {
 
 	t.Run("RecordImpression", func(t *testing.T) {
 		impression := Impression{
-			QueryID:      "query1",
-			Query:        "test query",
-			DocumentID:   "doc1",
-			Position:     1,
-			UserID:       "user1",
-			SessionID:    "session1",
-			Timestamp:    time.Now(),
-			ResultCount:  10,
-			SearchMode:   "hybrid",
+			QueryID:     "query1",
+			Query:       "test query",
+			DocumentID:  "doc1",
+			Position:    1,
+			UserID:      "user1",
+			SessionID:   "session1",
+			Timestamp:   time.Now(),
+			ResultCount: 10,
+			SearchMode:  "hybrid",
 		}
 
 		err := tracker.RecordImpression(ctx, impression)
@@ -142,7 +142,7 @@ func TestMemoryCTRTracker(t *testing.T) {
 	t.Run("GetPositionCTR", func(t *testing.T) {
 		// Create a fresh tracker for this test to avoid data from previous tests
 		freshTracker := NewMemoryCTRTracker()
-		
+
 		// Record clicks at different positions
 		positions := []int{1, 1, 1, 2, 2, 3}
 		clicks := []bool{true, true, false, true, false, false}
@@ -200,10 +200,10 @@ func TestMemoryCTRTracker(t *testing.T) {
 			impressions int
 			clicks      int
 		}{
-			{"doc_high_ctr", 100, 50},   // 50% CTR
-			{"doc_med_ctr", 100, 20},    // 20% CTR
-			{"doc_low_ctr", 100, 5},     // 5% CTR
-			{"doc_no_data", 0, 0},       // No data
+			{"doc_high_ctr", 100, 50}, // 50% CTR
+			{"doc_med_ctr", 100, 20},  // 20% CTR
+			{"doc_low_ctr", 100, 5},   // 5% CTR
+			{"doc_no_data", 0, 0},     // No data
 		}
 
 		// Record impressions and clicks

@@ -16,7 +16,7 @@ var (
 	bucketDocumentFeedback = []byte("document_feedback")
 	bucketSessions         = []byte("sessions")
 	bucketProfiles         = []byte("profiles")
-	
+
 	// Index buckets
 	bucketUserInteractions     = []byte("idx_user_interactions")
 	bucketSessionInteractions  = []byte("idx_session_interactions")
@@ -35,7 +35,7 @@ func NewBoltFeedbackStore(dbPath string) (*BoltFeedbackStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	
+
 	// Create buckets
 	err = db.Update(func(tx *bolt.Tx) error {
 		buckets := [][]byte{
@@ -49,21 +49,21 @@ func NewBoltFeedbackStore(dbPath string) (*BoltFeedbackStore, error) {
 			bucketQueryInteractions,
 			bucketDocumentInteractions,
 		}
-		
+
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create buckets: %w", err)
 	}
-	
+
 	return &BoltFeedbackStore{db: db}, nil
 }
 
@@ -80,13 +80,13 @@ func (s *BoltFeedbackStore) SaveInteraction(ctx context.Context, interaction *In
 		if err != nil {
 			return err
 		}
-		
+
 		// Save to main bucket
 		b := tx.Bucket(bucketInteractions)
 		if err := b.Put([]byte(interaction.ID), data); err != nil {
 			return err
 		}
-		
+
 		// Update indexes
 		if err := s.addToIndex(tx, bucketUserInteractions, interaction.UserID, interaction.ID); err != nil {
 			return err
@@ -100,7 +100,7 @@ func (s *BoltFeedbackStore) SaveInteraction(ctx context.Context, interaction *In
 		if err := s.addToIndex(tx, bucketDocumentInteractions, interaction.DocumentID, interaction.ID); err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
 }
@@ -108,12 +108,12 @@ func (s *BoltFeedbackStore) SaveInteraction(ctx context.Context, interaction *In
 // LoadInteractions loads interactions based on filter
 func (s *BoltFeedbackStore) LoadInteractions(ctx context.Context, filter InteractionFilter) ([]*Interaction, error) {
 	var interactions []*Interaction
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		// Determine which index to use
 		var indexBucket []byte
 		var indexKey string
-		
+
 		if filter.UserID != "" {
 			indexBucket = bucketUserInteractions
 			indexKey = filter.UserID
@@ -127,7 +127,7 @@ func (s *BoltFeedbackStore) LoadInteractions(ctx context.Context, filter Interac
 			indexBucket = bucketDocumentInteractions
 			indexKey = filter.DocumentID
 		}
-		
+
 		// Get interaction IDs from index
 		var interactionIDs []string
 		if indexBucket != nil {
@@ -144,7 +144,7 @@ func (s *BoltFeedbackStore) LoadInteractions(ctx context.Context, filter Interac
 				interactionIDs = append(interactionIDs, string(k))
 			}
 		}
-		
+
 		// Load interactions
 		b := tx.Bucket(bucketInteractions)
 		for _, id := range interactionIDs {
@@ -152,28 +152,28 @@ func (s *BoltFeedbackStore) LoadInteractions(ctx context.Context, filter Interac
 			if data == nil {
 				continue
 			}
-			
+
 			var interaction Interaction
 			if err := json.Unmarshal(data, &interaction); err != nil {
 				continue
 			}
-			
+
 			// Apply filters
 			if !s.matchesFilter(&interaction, filter) {
 				continue
 			}
-			
+
 			interactions = append(interactions, &interaction)
-			
+
 			// Apply limit
 			if filter.Limit > 0 && len(interactions) >= filter.Limit {
 				break
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return interactions, err
 }
 
@@ -184,7 +184,7 @@ func (s *BoltFeedbackStore) SaveQueryFeedback(ctx context.Context, feedback *Que
 		if err != nil {
 			return err
 		}
-		
+
 		b := tx.Bucket(bucketQueryFeedback)
 		return b.Put([]byte(feedback.QueryID), data)
 	})
@@ -193,23 +193,23 @@ func (s *BoltFeedbackStore) SaveQueryFeedback(ctx context.Context, feedback *Que
 // LoadQueryFeedback loads query feedback
 func (s *BoltFeedbackStore) LoadQueryFeedback(ctx context.Context, queryID string) (*QueryFeedback, error) {
 	var feedback *QueryFeedback
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketQueryFeedback)
 		data := b.Get([]byte(queryID))
 		if data == nil {
 			return fmt.Errorf("query feedback not found: %s", queryID)
 		}
-		
+
 		var f QueryFeedback
 		if err := json.Unmarshal(data, &f); err != nil {
 			return err
 		}
-		
+
 		feedback = &f
 		return nil
 	})
-	
+
 	return feedback, err
 }
 
@@ -220,7 +220,7 @@ func (s *BoltFeedbackStore) SaveDocumentFeedback(ctx context.Context, feedback *
 		if err != nil {
 			return err
 		}
-		
+
 		b := tx.Bucket(bucketDocumentFeedback)
 		return b.Put([]byte(feedback.DocumentID), data)
 	})
@@ -229,23 +229,23 @@ func (s *BoltFeedbackStore) SaveDocumentFeedback(ctx context.Context, feedback *
 // LoadDocumentFeedback loads document feedback
 func (s *BoltFeedbackStore) LoadDocumentFeedback(ctx context.Context, documentID string) (*DocumentFeedback, error) {
 	var feedback *DocumentFeedback
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketDocumentFeedback)
 		data := b.Get([]byte(documentID))
 		if data == nil {
 			return fmt.Errorf("document feedback not found: %s", documentID)
 		}
-		
+
 		var f DocumentFeedback
 		if err := json.Unmarshal(data, &f); err != nil {
 			return err
 		}
-		
+
 		feedback = &f
 		return nil
 	})
-	
+
 	return feedback, err
 }
 
@@ -266,7 +266,7 @@ func (s *BoltSessionStore) SaveSession(ctx context.Context, session *Session) er
 		if err != nil {
 			return err
 		}
-		
+
 		b := tx.Bucket(bucketSessions)
 		return b.Put([]byte(session.ID), data)
 	})
@@ -275,50 +275,50 @@ func (s *BoltSessionStore) SaveSession(ctx context.Context, session *Session) er
 // LoadSession loads a session
 func (s *BoltSessionStore) LoadSession(ctx context.Context, sessionID string) (*Session, error) {
 	var session *Session
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketSessions)
 		data := b.Get([]byte(sessionID))
 		if data == nil {
 			return fmt.Errorf("session not found: %s", sessionID)
 		}
-		
+
 		var sess Session
 		if err := json.Unmarshal(data, &sess); err != nil {
 			return err
 		}
-		
+
 		session = &sess
 		return nil
 	})
-	
+
 	return session, err
 }
 
 // LoadUserSessions loads sessions for a user
 func (s *BoltSessionStore) LoadUserSessions(ctx context.Context, userID string, limit int) ([]*Session, error) {
 	var sessions []*Session
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketSessions)
 		c := b.Cursor()
-		
+
 		count := 0
 		for k, v := c.Last(); k != nil && (limit <= 0 || count < limit); k, v = c.Prev() {
 			var session Session
 			if err := json.Unmarshal(v, &session); err != nil {
 				continue
 			}
-			
+
 			if session.UserID == userID {
 				sessions = append(sessions, &session)
 				count++
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return sessions, err
 }
 
@@ -347,7 +347,7 @@ func (s *BoltProfileStore) SaveProfile(ctx context.Context, profile *UserProfile
 		if err != nil {
 			return err
 		}
-		
+
 		b := tx.Bucket(bucketProfiles)
 		return b.Put([]byte(profile.ID), data)
 	})
@@ -356,23 +356,23 @@ func (s *BoltProfileStore) SaveProfile(ctx context.Context, profile *UserProfile
 // LoadProfile loads a user profile
 func (s *BoltProfileStore) LoadProfile(ctx context.Context, userID string) (*UserProfile, error) {
 	var profile *UserProfile
-	
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketProfiles)
 		data := b.Get([]byte(userID))
 		if data == nil {
 			return fmt.Errorf("profile not found: %s", userID)
 		}
-		
+
 		var prof UserProfile
 		if err := json.Unmarshal(data, &prof); err != nil {
 			return err
 		}
-		
+
 		profile = &prof
 		return nil
 	})
-	
+
 	return profile, err
 }
 
@@ -390,9 +390,9 @@ func (s *BoltFeedbackStore) addToIndex(tx *bolt.Tx, bucketName []byte, key, valu
 	if key == "" {
 		return nil
 	}
-	
+
 	b := tx.Bucket(bucketName)
-	
+
 	// Get existing values
 	data := b.Get([]byte(key))
 	var values []string
@@ -401,16 +401,16 @@ func (s *BoltFeedbackStore) addToIndex(tx *bolt.Tx, bucketName []byte, key, valu
 			return err
 		}
 	}
-	
+
 	// Add new value
 	values = append(values, value)
-	
+
 	// Save updated values
 	data, err := json.Marshal(values)
 	if err != nil {
 		return err
 	}
-	
+
 	return b.Put([]byte(key), data)
 }
 
@@ -420,12 +420,12 @@ func (s *BoltFeedbackStore) getFromIndex(tx *bolt.Tx, bucketName []byte, key str
 	if data == nil {
 		return nil, nil
 	}
-	
+
 	var values []string
 	if err := json.Unmarshal(data, &values); err != nil {
 		return nil, err
 	}
-	
+
 	return values, nil
 }
 
@@ -454,6 +454,6 @@ func (s *BoltFeedbackStore) matchesFilter(interaction *Interaction, filter Inter
 	if filter.EndTime != nil && interaction.Timestamp.After(*filter.EndTime) {
 		return false
 	}
-	
+
 	return true
 }

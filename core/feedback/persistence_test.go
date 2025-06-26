@@ -17,11 +17,11 @@ func TestBoltFeedbackStore(t *testing.T) {
 	// Create temporary database file
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_feedback.db")
-	
+
 	store, err := NewBoltFeedbackStore(dbPath)
 	require.NoError(t, err)
 	defer store.Close()
-	
+
 	ctx := context.Background()
 
 	t.Run("SaveAndLoadInteraction", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestBoltFeedbackStore(t *testing.T) {
 		interactions, err := store.LoadInteractions(ctx, filter)
 		assert.NoError(t, err)
 		assert.Len(t, interactions, 5)
-		
+
 		// Verify all belong to the session
 		for _, interaction := range interactions {
 			assert.Equal(t, "session2", interaction.SessionID)
@@ -219,11 +219,11 @@ func TestBoltSessionStore(t *testing.T) {
 	// Create temporary database
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_sessions.db")
-	
+
 	feedbackStore, err := NewBoltFeedbackStore(dbPath)
 	require.NoError(t, err)
 	defer feedbackStore.Close()
-	
+
 	store := NewBoltSessionStore(feedbackStore.db)
 	ctx := context.Background()
 
@@ -234,7 +234,7 @@ func TestBoltSessionStore(t *testing.T) {
 			StartTime:  time.Now(),
 			QueryCount: 5,
 			Metadata: map[string]interface{}{
-				"device": "desktop",
+				"device":  "desktop",
 				"browser": "chrome",
 			},
 		}
@@ -268,7 +268,7 @@ func TestBoltSessionStore(t *testing.T) {
 		sessions, err := store.LoadUserSessions(ctx, "multi_user", 3)
 		assert.NoError(t, err)
 		assert.LessOrEqual(t, len(sessions), 3)
-		
+
 		// Verify all belong to the user
 		for _, session := range sessions {
 			assert.Equal(t, "multi_user", session.UserID)
@@ -326,11 +326,11 @@ func TestBoltProfileStore(t *testing.T) {
 	// Create temporary database
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_profiles.db")
-	
+
 	feedbackStore, err := NewBoltFeedbackStore(dbPath)
 	require.NoError(t, err)
 	defer feedbackStore.Close()
-	
+
 	store := NewBoltProfileStore(feedbackStore.db)
 	ctx := context.Background()
 
@@ -437,9 +437,9 @@ func TestPersistenceIntegration(t *testing.T) {
 	// Test that reopening the database preserves data
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_persistence.db")
-	
+
 	ctx := context.Background()
-	
+
 	// Create and populate database
 	{
 		store, err := NewBoltFeedbackStore(dbPath)
@@ -501,11 +501,11 @@ func TestPersistenceIntegration(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_concurrent.db")
-	
+
 	store, err := NewBoltFeedbackStore(dbPath)
 	require.NoError(t, err)
 	defer store.Close()
-	
+
 	ctx := context.Background()
 
 	// Test concurrent writes
@@ -517,7 +517,7 @@ func TestConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < interactionsPerGoroutine; j++ {
 				interaction := &Interaction{
 					ID:         fmt.Sprintf("concurrent_%d_%d", goroutineID, j),
@@ -528,7 +528,7 @@ func TestConcurrentAccess(t *testing.T) {
 					Type:       InteractionTypeClick,
 					Timestamp:  time.Now(),
 				}
-				
+
 				err := store.SaveInteraction(ctx, interaction)
 				assert.NoError(t, err)
 			}

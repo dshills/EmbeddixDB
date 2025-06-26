@@ -15,7 +15,7 @@ type memoryCollector struct {
 	interactions     map[string]*Interaction
 	queryFeedback    map[string]*QueryFeedback
 	documentFeedback map[string]*DocumentFeedback
-	
+
 	// Indexes for efficient lookups
 	userInteractions     map[string][]string // userID -> interactionIDs
 	sessionInteractions  map[string][]string // sessionID -> interactionIDs
@@ -247,24 +247,24 @@ func (c *persistentCollector) GetInteractions(ctx context.Context, filter Intera
 		// If memory fails, try to load from persistent storage
 		return c.store.LoadInteractions(ctx, filter)
 	}
-	
+
 	// If memory returns results, use those
 	if len(memoryResults) > 0 {
 		return memoryResults, nil
 	}
-	
+
 	// If memory is empty, try to load from persistent storage and cache in memory
 	persistentResults, err := c.store.LoadInteractions(ctx, filter)
 	if err != nil {
 		return []*Interaction{}, nil // Return empty slice if no data found
 	}
-	
+
 	// Cache the results in memory for future access
 	for _, interaction := range persistentResults {
 		// Add to memory (ignore errors since we already have the data)
 		c.memoryCollector.RecordInteraction(ctx, interaction)
 	}
-	
+
 	return persistentResults, nil
 }
 

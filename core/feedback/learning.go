@@ -96,7 +96,7 @@ func (e *simpleLearningEngine) GenerateLearningSignals(ctx context.Context, inte
 
 				// Extract features for the pair
 				features := e.extractPairwiseFeatures(doc1, doc2)
-				
+
 				signal := &LearningSignal{
 					Query:      doc1.Query,
 					DocumentID: fmt.Sprintf("%s_vs_%s", doc1.DocumentID, doc2.DocumentID),
@@ -130,7 +130,7 @@ func (e *simpleLearningEngine) UpdateClickModel(ctx context.Context, interaction
 	for _, interaction := range interactions {
 		pos := interaction.Position
 		positionImpressions[pos]++
-		
+
 		if interaction.Type == InteractionTypeClick {
 			positionClicks[pos]++
 		}
@@ -146,7 +146,7 @@ func (e *simpleLearningEngine) UpdateClickModel(ctx context.Context, interaction
 		if impressions > 0 {
 			clicks := positionClicks[pos]
 			ctr := clicks / impressions
-			
+
 			// Log-likelihood contribution
 			if ctr > 0 {
 				alpha += math.Log(ctr) * clicks
@@ -160,7 +160,7 @@ func (e *simpleLearningEngine) UpdateClickModel(ctx context.Context, interaction
 		// Update parameters with smoothing
 		newAlpha := math.Exp(alpha / float64(n))
 		newBeta := -beta / float64(n)
-		
+
 		e.clickModel.Parameters["alpha"] = 0.9*e.clickModel.Parameters["alpha"] + 0.1*newAlpha
 		e.clickModel.Parameters["beta"] = 0.9*e.clickModel.Parameters["beta"] + 0.1*newBeta
 	}
@@ -176,18 +176,18 @@ func (e *simpleLearningEngine) GetClickProbability(ctx context.Context, position
 	// Position bias model: P(click) = alpha * position^(-beta)
 	alpha := e.clickModel.Parameters["alpha"]
 	beta := e.clickModel.Parameters["beta"]
-	
+
 	positionBias := alpha * math.Pow(float64(position), -beta)
-	
+
 	// Adjust by relevance features if available
 	relevance := 0.5 // Default relevance
 	if features != nil {
 		relevance = e.computeRelevance(features)
 	}
-	
+
 	// Combine position bias and relevance
 	clickProbability := positionBias * relevance
-	
+
 	// Ensure probability is in [0, 1]
 	return math.Min(math.Max(clickProbability, 0.0), 1.0), nil
 }
@@ -205,7 +205,7 @@ func (e *simpleLearningEngine) TrainModel(ctx context.Context, signals []*Learni
 
 	// Add new signals to training data
 	e.trainingData = append(e.trainingData, signals...)
-	
+
 	// Limit training data size
 	if len(e.trainingData) > e.maxTrainingSize {
 		// Keep only recent data
@@ -219,25 +219,25 @@ func (e *simpleLearningEngine) TrainModel(ctx context.Context, signals []*Learni
 
 	for epoch := 0; epoch < epochs; epoch++ {
 		totalLoss := 0.0
-		
+
 		for _, signal := range e.trainingData {
 			// Compute prediction
 			prediction := e.computeRelevance(signal.Features)
-			
+
 			// Compute loss (squared error)
 			loss := math.Pow(prediction-signal.Label, 2)
 			totalLoss += loss
-			
+
 			// Update weights
 			for feature, value := range signal.Features {
 				gradient := 2 * (prediction - signal.Label) * value
-				
+
 				// Apply gradient with L2 regularization
 				oldWeight := e.relevanceModel[feature]
 				e.relevanceModel[feature] = oldWeight - learningRate*(gradient+regularization*oldWeight)
 			}
 		}
-		
+
 		// Decay learning rate
 		learningRate *= 0.95
 	}
@@ -288,7 +288,7 @@ func (e *simpleLearningEngine) extractPairwiseFeatures(doc1, doc2 *Interaction) 
 	// Position features
 	features["pos_diff"] = float64(doc2.Position - doc1.Position)
 	features["pos_ratio"] = float64(doc1.Position) / float64(doc2.Position)
-	
+
 	// Metadata features (if available)
 	if doc1.Metadata != nil && doc2.Metadata != nil {
 		// Score differences
@@ -297,7 +297,7 @@ func (e *simpleLearningEngine) extractPairwiseFeatures(doc1, doc2 *Interaction) 
 				features["score_diff"] = score1 - score2
 			}
 		}
-		
+
 		// View count differences
 		if views1, ok1 := doc1.Metadata["views"].(float64); ok1 {
 			if views2, ok2 := doc2.Metadata["views"].(float64); ok2 {
@@ -311,13 +311,13 @@ func (e *simpleLearningEngine) extractPairwiseFeatures(doc1, doc2 *Interaction) 
 
 func (e *simpleLearningEngine) computeRelevance(features map[string]float64) float64 {
 	score := 0.5 // Base relevance
-	
+
 	for feature, value := range features {
 		if weight, exists := e.relevanceModel[feature]; exists {
 			score += weight * value
 		}
 	}
-	
+
 	// Apply sigmoid to get probability
 	return 1.0 / (1.0 + math.Exp(-score))
 }
@@ -377,21 +377,21 @@ func (a *feedbackAnalyzer) AnalyzeQuerySatisfaction(ctx context.Context, interac
 			satisfactionScore += 0.2
 			confidence += 0.2
 		}
-		
+
 		// Multiple clicks might indicate exploration
 		if clickCount >= 3 {
 			satisfactionScore -= 0.1
 		}
 	}
 
-	// Dwell time satisfaction  
+	// Dwell time satisfaction
 	dwellCount := 0
 	for _, interaction := range interactions {
 		if interaction.Type == InteractionTypeDwell {
 			dwellCount++
 		}
 	}
-	
+
 	if dwellCount > 0 {
 		avgDwellTime := totalDwellTime / float64(dwellCount)
 		if avgDwellTime > 30 {
@@ -411,7 +411,7 @@ func (a *feedbackAnalyzer) AnalyzeQuerySatisfaction(ctx context.Context, interac
 
 	satisfied = satisfactionScore > 0.3
 	confidence = math.Min(confidence, 1.0)
-	
+
 	return satisfied, confidence
 }
 
@@ -530,12 +530,12 @@ func (a *feedbackAnalyzer) DetectAnomalies(ctx context.Context, interactions []*
 				clickTimes = append(clickTimes, interaction.Timestamp)
 			}
 		}
-		
+
 		if len(clickTimes) > 10 {
 			// Check click rate
 			duration := clickTimes[len(clickTimes)-1].Sub(clickTimes[0])
 			clickRate := float64(len(clickTimes)) / duration.Seconds()
-			
+
 			if clickRate > 1.0 { // More than 1 click per second
 				anomalies = append(anomalies, fmt.Sprintf("user:%s:rapid_clicking", userID))
 			}
@@ -548,7 +548,7 @@ func (a *feedbackAnalyzer) DetectAnomalies(ctx context.Context, interactions []*
 				negativeCount++
 			}
 		}
-		
+
 		if negativeCount > 5 {
 			anomalies = append(anomalies, fmt.Sprintf("user:%s:excessive_negative_ratings", userID))
 		}

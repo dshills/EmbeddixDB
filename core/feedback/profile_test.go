@@ -209,14 +209,14 @@ func TestPersistentProfileManager(t *testing.T) {
 	store := &mockProfileStore{
 		profiles: make(map[string]*UserProfile),
 	}
-	
+
 	ctx := context.Background()
 	manager := NewPersistentProfileManager(store)
 
 	t.Run("CreateProfile_Persists", func(t *testing.T) {
 		profile, err := manager.CreateProfile(ctx, "user1")
 		assert.NoError(t, err)
-		
+
 		// Verify it was persisted to store
 		assert.Contains(t, store.profiles, profile.ID)
 	})

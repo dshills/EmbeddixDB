@@ -42,10 +42,10 @@ func (m *memoryProfileManager) CreateProfile(ctx context.Context, userID string)
 	}
 
 	profile := &UserProfile{
-		ID:              userID,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-		SearchCount:     0,
+		ID:               userID,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		SearchCount:      0,
 		InteractionCount: 0,
 		Preferences: UserPreferences{
 			PreferredLanguages: []string{"en"},
@@ -172,7 +172,7 @@ func (m *memoryProfileManager) GetTopInterests(ctx context.Context, userID strin
 		name  string
 		score float64
 	}
-	
+
 	var topicList []interest
 	for topic, score := range profile.TopicInterests {
 		topicList = append(topicList, interest{topic, score})

@@ -9,19 +9,19 @@ import (
 type ManagerConfig struct {
 	// Session configuration
 	SessionTimeout time.Duration
-	
+
 	// Cache configuration
 	MaxCacheSize int
-	
+
 	// CTR tracking configuration
 	EnableCTRTracking bool
 	CTRMaxDataSize    int
 	CTRDecayFactor    float64
-	
+
 	// Learning configuration
 	EnableLearning      bool
 	MaxTrainingDataSize int
-	
+
 	// Persistence configuration (for future use)
 	EnablePersistence bool
 	StoragePath       string
@@ -59,19 +59,19 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	var feedbackStore *BoltFeedbackStore
 	var sessionStore *BoltSessionStore
 	var profileStore *BoltProfileStore
-	
+
 	// Open persistent storage if enabled
 	if config.EnablePersistence && config.StoragePath != "" {
 		feedbackStore, err = NewBoltFeedbackStore(config.StoragePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create feedback store: %w", err)
 		}
-		
+
 		// Share the same DB for all stores
 		sessionStore = NewBoltSessionStore(feedbackStore.db)
 		profileStore = NewBoltProfileStore(feedbackStore.db)
 	}
-	
+
 	// Create collector
 	var collector Collector
 	if config.EnablePersistence && feedbackStore != nil {
@@ -79,7 +79,7 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	} else {
 		collector = NewMemoryCollector()
 	}
-	
+
 	// Create session manager
 	var sessionManager SessionManager
 	if config.EnablePersistence && sessionStore != nil {
@@ -87,7 +87,7 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	} else {
 		sessionManager = NewMemorySessionManager(config.SessionTimeout)
 	}
-	
+
 	// Create profile manager
 	var profileManager ProfileManager
 	if config.EnablePersistence && profileStore != nil {
@@ -95,22 +95,22 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	} else {
 		profileManager = NewMemoryProfileManager()
 	}
-	
+
 	// Create learning engine
 	var learningEngine LearningEngine
 	if config.EnableLearning {
 		learningEngine = NewSimpleLearningEngine()
 	}
-	
+
 	// Create analyzer
 	analyzer := NewFeedbackAnalyzer(collector)
-	
+
 	// Create CTR tracker
 	var ctrTracker CTRTracker
 	if config.EnableCTRTracking {
 		ctrTracker = NewMemoryCTRTracker()
 	}
-	
+
 	manager := &Manager{
 		Collector:      collector,
 		SessionManager: sessionManager,
@@ -119,12 +119,12 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 		Analyzer:       analyzer,
 		CTRTracker:     ctrTracker,
 	}
-	
+
 	// Store reference to feedbackStore for cleanup
 	if feedbackStore != nil {
 		manager.store = feedbackStore
 	}
-	
+
 	return manager, nil
 }
 

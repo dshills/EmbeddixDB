@@ -14,7 +14,7 @@ type memorySessionManager struct {
 	mu           sync.RWMutex
 	sessions     map[string]*Session
 	userSessions map[string][]string // userID -> sessionIDs
-	
+
 	// Configuration
 	sessionTimeout time.Duration
 }
@@ -24,16 +24,16 @@ func NewMemorySessionManager(sessionTimeout time.Duration) SessionManager {
 	if sessionTimeout == 0 {
 		sessionTimeout = 30 * time.Minute // Default 30 minutes
 	}
-	
+
 	manager := &memorySessionManager{
 		sessions:       make(map[string]*Session),
 		userSessions:   make(map[string][]string),
 		sessionTimeout: sessionTimeout,
 	}
-	
+
 	// Start cleanup routine
 	go manager.cleanupExpiredSessions()
-	
+
 	return manager
 }
 
@@ -145,7 +145,7 @@ func (m *memorySessionManager) GetSessionHistory(ctx context.Context, userID str
 
 	// Sort by start time (most recent first)
 	// In a real implementation, we'd use sort.Slice here
-	
+
 	// Apply limit
 	if limit > 0 && len(sessions) > limit {
 		sessions = sessions[:limit]
@@ -160,10 +160,10 @@ func (m *memorySessionManager) cleanupExpiredSessions() {
 
 	for range ticker.C {
 		m.mu.Lock()
-		
+
 		now := time.Now()
 		expiredSessions := []string{}
-		
+
 		for sessionID, session := range m.sessions {
 			// Remove sessions that have been ended for more than 24 hours
 			if session.EndTime != nil && now.Sub(*session.EndTime) > 24*time.Hour {
@@ -175,7 +175,7 @@ func (m *memorySessionManager) cleanupExpiredSessions() {
 				session.EndTime = &endTime
 			}
 		}
-		
+
 		// Remove expired sessions
 		for _, sessionID := range expiredSessions {
 			delete(m.sessions, sessionID)
@@ -190,7 +190,7 @@ func (m *memorySessionManager) cleanupExpiredSessions() {
 				m.userSessions[userID] = filtered
 			}
 		}
-		
+
 		m.mu.Unlock()
 	}
 }
@@ -214,7 +214,7 @@ func NewPersistentSessionManager(store SessionStore, sessionTimeout time.Duratio
 	if sessionTimeout == 0 {
 		sessionTimeout = 30 * time.Minute
 	}
-	
+
 	return &persistentSessionManager{
 		memorySessionManager: memorySessionManager{
 			sessions:       make(map[string]*Session),
@@ -249,13 +249,13 @@ func (m *persistentSessionManager) GetSession(ctx context.Context, sessionID str
 	if err == nil {
 		return session, nil
 	}
-	
+
 	// If not in memory, try to load from persistent storage
 	session, err = m.store.LoadSession(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
-	
+
 	// Add to memory cache for future access
 	m.mu.Lock()
 	m.sessions[sessionID] = session
@@ -275,7 +275,7 @@ func (m *persistentSessionManager) GetSession(ctx context.Context, sessionID str
 		m.userSessions[session.UserID] = []string{sessionID}
 	}
 	m.mu.Unlock()
-	
+
 	return session, nil
 }
 

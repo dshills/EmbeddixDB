@@ -55,7 +55,7 @@ func TestMemoryCollector(t *testing.T) {
 		interactions, err := collector.GetInteractions(ctx, filter)
 		assert.NoError(t, err)
 		assert.Len(t, interactions, 5)
-		
+
 		// Verify all interactions belong to user2
 		for _, interaction := range interactions {
 			assert.Equal(t, "user2", interaction.UserID)
@@ -186,7 +186,7 @@ func TestPersistentCollector(t *testing.T) {
 		queryFeedback:    make(map[string]*QueryFeedback),
 		documentFeedback: make(map[string]*DocumentFeedback),
 	}
-	
+
 	ctx := context.Background()
 	collector := NewPersistentCollector(store)
 
@@ -204,7 +204,7 @@ func TestPersistentCollector(t *testing.T) {
 
 		err := collector.RecordInteraction(ctx, interaction)
 		assert.NoError(t, err)
-		
+
 		// Verify it was persisted to store
 		assert.Contains(t, store.interactions, interaction.ID)
 	})
@@ -221,7 +221,7 @@ func TestPersistentCollector(t *testing.T) {
 
 		err := collector.RecordQuery(ctx, queryFeedback)
 		assert.NoError(t, err)
-		
+
 		// Verify it was persisted to store
 		assert.Contains(t, store.queryFeedback, queryFeedback.QueryID)
 	})

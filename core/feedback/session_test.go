@@ -19,7 +19,7 @@ func TestMemorySessionManager(t *testing.T) {
 			"device": "mobile",
 			"app":    "web",
 		}
-		
+
 		session, err := manager.CreateSession(ctx, "user1", metadata)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, session.ID)
@@ -90,7 +90,7 @@ func TestMemorySessionManager(t *testing.T) {
 		activeSessions, err := manager.GetActiveSessions(ctx, "user5")
 		assert.NoError(t, err)
 		assert.Len(t, activeSessions, 3)
-		
+
 		// All should be active (no end time)
 		for _, session := range activeSessions {
 			assert.Nil(t, session.EndTime)
@@ -143,7 +143,7 @@ func TestPersistentSessionManager(t *testing.T) {
 	store := &mockSessionStore{
 		sessions: make(map[string]*Session),
 	}
-	
+
 	ctx := context.Background()
 	sessionTimeout := 30 * time.Minute
 	manager := NewPersistentSessionManager(store, sessionTimeout)
@@ -151,7 +151,7 @@ func TestPersistentSessionManager(t *testing.T) {
 	t.Run("CreateSession_Persists", func(t *testing.T) {
 		session, err := manager.CreateSession(ctx, "user1", nil)
 		assert.NoError(t, err)
-		
+
 		// Verify it was persisted to store
 		assert.Contains(t, store.sessions, session.ID)
 	})

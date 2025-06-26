@@ -21,11 +21,11 @@ type SearchResult struct {
 
 // RerankingContext contains context for re-ranking
 type RerankingContext struct {
-	UserID    string
-	SessionID string
-	Query     string
-	Timestamp time.Time
-	UserProfile *UserProfile
+	UserID         string
+	SessionID      string
+	Query          string
+	Timestamp      time.Time
+	UserProfile    *UserProfile
 	SessionHistory []*Interaction
 }
 
@@ -33,29 +33,29 @@ type RerankingContext struct {
 type Reranker interface {
 	// Rerank re-ranks search results based on context and learned patterns
 	Rerank(ctx context.Context, results []SearchResult, rerankCtx RerankingContext) ([]SearchResult, error)
-	
+
 	// UpdateModel updates the re-ranking model based on feedback
 	UpdateModel(ctx context.Context, feedback []*Interaction) error
-	
+
 	// GetFeatures extracts features for a result in context
 	GetFeatures(result SearchResult, rerankCtx RerankingContext) map[string]float64
 }
 
 // contextualReranker implements learning-based re-ranking
 type contextualReranker struct {
-	mu               sync.RWMutex
-	collector        Collector
-	profileManager   ProfileManager
-	learningEngine   LearningEngine
-	
+	mu             sync.RWMutex
+	collector      Collector
+	profileManager ProfileManager
+	learningEngine LearningEngine
+
 	// Feature weights learned from interactions
-	featureWeights   map[string]float64
-	
+	featureWeights map[string]float64
+
 	// Position bias model
-	positionBias     []float64
-	
+	positionBias []float64
+
 	// Click models
-	clickModel       ClickModel
+	clickModel ClickModel
 }
 
 // NewContextualReranker creates a new contextual re-ranker
@@ -93,10 +93,10 @@ func (r *contextualReranker) Rerank(ctx context.Context, results []SearchResult,
 
 	for i := range rerankedResults {
 		features := resultFeatures[i]
-		
+
 		// Base score from original search
 		score := rerankedResults[i].Score
-		
+
 		// Apply feature-based adjustments
 		r.mu.RLock()
 		for feature, value := range features {
@@ -105,18 +105,18 @@ func (r *contextualReranker) Rerank(ctx context.Context, results []SearchResult,
 			}
 		}
 		r.mu.RUnlock()
-		
+
 		// Apply personalization if profile exists
 		if rerankCtx.UserProfile != nil {
 			score = r.applyPersonalization(score, rerankedResults[i], rerankCtx.UserProfile)
 		}
-		
+
 		// Apply temporal boost for recent content
 		score = r.applyTemporalBoost(score, rerankedResults[i])
-		
+
 		// Apply diversity penalty if needed
 		score = r.applyDiversityPenalty(score, rerankedResults[i], rerankedResults[:i])
-		
+
 		rerankedResults[i].Score = score
 	}
 
@@ -141,11 +141,11 @@ func (r *contextualReranker) GetFeatures(result SearchResult, rerankCtx Rerankin
 	features["vector_score"] = result.VectorScore
 	features["text_score"] = result.TextScore
 	features["score_variance"] = math.Abs(result.VectorScore - result.TextScore)
-	
+
 	// Position features
 	features["original_position"] = float64(result.Position)
 	features["inverse_position"] = 1.0 / float64(result.Position)
-	
+
 	// Metadata features
 	if result.Metadata != nil {
 		// Document quality signals
@@ -155,40 +155,40 @@ func (r *contextualReranker) GetFeatures(result SearchResult, rerankCtx Rerankin
 		if rating, ok := result.Metadata["avg_rating"].(float64); ok {
 			features["document_rating"] = rating
 		}
-		
+
 		// Freshness
 		if created, ok := result.Metadata["created_at"].(time.Time); ok {
 			age := time.Since(created).Hours()
 			features["document_freshness"] = 1.0 / (1.0 + age/24.0) // Decay over days
 		}
-		
+
 		// Source authority
 		if source, ok := result.Metadata["source"].(string); ok {
 			features["source_authority"] = r.getSourceAuthority(source)
 		}
-		
+
 		// Topic relevance
 		if topics, ok := result.Metadata["topics"].([]string); ok && rerankCtx.UserProfile != nil {
 			features["topic_relevance"] = r.computeTopicRelevance(topics, rerankCtx.UserProfile)
 		}
 	}
-	
+
 	// User-document features (if we have historical data)
 	if rerankCtx.UserID != "" {
 		features["user_doc_clicks"] = r.getUserDocumentClicks(rerankCtx.UserID, result.ID)
 		features["user_doc_dwell"] = r.getUserDocumentDwellTime(rerankCtx.UserID, result.ID)
 	}
-	
+
 	// Session features
 	if len(rerankCtx.SessionHistory) > 0 {
 		features["session_topic_consistency"] = r.computeSessionConsistency(result, rerankCtx.SessionHistory)
 		features["session_diversity_needed"] = r.computeDiversityNeed(rerankCtx.SessionHistory)
 	}
-	
+
 	// Query features
 	features["query_length"] = float64(len(rerankCtx.Query))
 	features["query_complexity"] = r.estimateQueryComplexity(rerankCtx.Query)
-	
+
 	return features
 }
 
@@ -259,7 +259,7 @@ func (r *contextualReranker) applyDiversityPenalty(score float64, result SearchR
 	// Check similarity with previous results
 	maxSimilarity := 0.0
 	resultTopics, _ := result.Metadata["topics"].([]string)
-	
+
 	for _, prev := range previousResults {
 		prevTopics, _ := prev.Metadata["topics"].([]string)
 		similarity := r.computeTopicSimilarity(resultTopics, prevTopics)
@@ -320,12 +320,12 @@ func (r *contextualReranker) getSourceAuthority(source string) float64 {
 	// Hardcoded authority scores for demo
 	// In production, this would be learned from data
 	authorities := map[string]float64{
-		"wikipedia":   0.9,
-		"arxiv":       0.85,
-		"github":      0.8,
+		"wikipedia":     0.9,
+		"arxiv":         0.85,
+		"github":        0.8,
 		"stackoverflow": 0.75,
-		"medium":      0.6,
-		"blog":        0.5,
+		"medium":        0.6,
+		"blog":          0.5,
 	}
 
 	if auth, exists := authorities[source]; exists {
@@ -379,12 +379,12 @@ func (r *contextualReranker) computeSessionConsistency(result SearchResult, hist
 	if len(history) == 0 {
 		return 0.5 // Neutral if no history
 	}
-	
+
 	resultTopics, ok := result.Metadata["topics"].([]string)
 	if !ok || len(resultTopics) == 0 {
 		return 0.5 // Neutral if no topics
 	}
-	
+
 	// Collect all topics from session history
 	historyTopics := make(map[string]bool)
 	for _, interaction := range history {
@@ -398,11 +398,11 @@ func (r *contextualReranker) computeSessionConsistency(result SearchResult, hist
 			}
 		}
 	}
-	
+
 	if len(historyTopics) == 0 {
 		return 0.5 // Neutral if no history topics
 	}
-	
+
 	// Calculate overlap between result topics and history topics
 	matchingTopics := 0
 	for _, topic := range resultTopics {
@@ -410,12 +410,12 @@ func (r *contextualReranker) computeSessionConsistency(result SearchResult, hist
 			matchingTopics++
 		}
 	}
-	
+
 	// Return consistency score (0.0 to 1.0)
 	if len(resultTopics) == 0 {
 		return 0.5
 	}
-	
+
 	consistency := float64(matchingTopics) / float64(len(resultTopics))
 	// Boost consistency to make it more influential in ranking
 	return 0.3 + (consistency * 0.7) // Scale from 0.3 to 1.0
@@ -442,7 +442,7 @@ func (r *contextualReranker) updateFeatureWeights(signals []*LearningSignal) {
 
 	// Simple gradient descent update
 	learningRate := 0.01
-	
+
 	for _, signal := range signals {
 		for feature, value := range signal.Features {
 			gradient := (signal.Label - r.predictScore(signal.Features)) * value
@@ -491,20 +491,20 @@ func (r *contextualReranker) predictScore(features map[string]float64) float64 {
 
 func initializeFeatureWeights() map[string]float64 {
 	return map[string]float64{
-		"original_score":          1.0,
-		"vector_score":            0.5,
-		"text_score":              0.5,
-		"score_variance":          -0.1,
-		"document_popularity":     0.2,
-		"document_rating":         0.3,
-		"document_freshness":      0.15,
-		"source_authority":        0.25,
-		"topic_relevance":         0.4,
-		"user_doc_clicks":         0.3,
-		"user_doc_dwell":          0.2,
+		"original_score":            1.0,
+		"vector_score":              0.5,
+		"text_score":                0.5,
+		"score_variance":            -0.1,
+		"document_popularity":       0.2,
+		"document_rating":           0.3,
+		"document_freshness":        0.15,
+		"source_authority":          0.25,
+		"topic_relevance":           0.4,
+		"user_doc_clicks":           0.3,
+		"user_doc_dwell":            0.2,
 		"session_topic_consistency": 0.2,
-		"session_diversity_needed": 0.1,
-		"query_complexity":        0.1,
+		"session_diversity_needed":  0.1,
+		"query_complexity":          0.1,
 	}
 }
 

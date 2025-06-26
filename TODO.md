@@ -175,29 +175,58 @@ _No active development tasks at this time. All core features are implemented and
 
 ## High Priority
 
-### 2. Performance Optimizations
-- [ ] **Query Optimization**
-  - Query plan caching
-  - Adaptive search parameters
-  - Early termination for sorted results
-  - Progressive search (return results as found)
-  - Multi-probe LSH for fast pre-filtering
-  - Parallel query execution across CPU cores
-- [ ] **Index Improvements**
-  - Quantization support (reduce memory usage)
-  - GPU acceleration support for embeddings
-  - Incremental index updates
-  - Index compaction and optimization
-  - Adaptive index selection based on collection size/query patterns
-  - Hierarchical indexing (coarse-to-fine search)
-  - Dynamic granularity adjustment
-- [ ] **Caching Layer**
-  - Query result caching
-  - Vector cache with LRU eviction
-  - Distributed cache support
-  - Semantic cache for frequently accessed vector neighborhoods
-  - Temporal locality cache (recent vectors in hot memory)
-  - Agent-specific LRU caches
+### 2. Performance Optimizations 📋 **PLANNED - See Detailed Plan**
+
+> **📄 Comprehensive Implementation Plan**: [`docs/PERFORMANCE_OPTIMIZATION_PLAN.md`](docs/PERFORMANCE_OPTIMIZATION_PLAN.md)
+> 
+> **Timeline**: 16 weeks (4 phases) | **Target**: 50% latency reduction, 30% throughput increase, 40% memory reduction
+
+#### Phase 1: Foundation & Measurement (3 weeks)
+- [ ] **Performance Infrastructure** 
+  - Benchmarking framework for LLM workloads
+  - Profiling integration (CPU, memory, goroutines)
+  - Baseline establishment and monitoring dashboard
+- [ ] **Quick Wins Implementation**
+  - SIMD optimization (AVX2 distance computation)
+  - Basic query result caching with LRU
+  - Memory-aligned vector storage
+
+#### Phase 2: Query Engine Optimizations (4 weeks)  
+- [ ] **Query Plan Caching & Adaptive Parameters**
+  - Query plan cache with execution optimization
+  - Adaptive parameter tuning based on collection characteristics
+  - Parallel execution framework with worker pools
+- [ ] **Early Termination & Progressive Search**
+  - Confidence-based and time-based stopping criteria
+  - Streaming result interface for reduced perceived latency
+  - Context cancellation and resource management
+
+#### Phase 3: Intelligent Caching Layer (3 weeks)
+- [ ] **Multi-Level Cache Architecture**
+  - L1: Query result cache with personalization awareness
+  - L2: Vector cache with intelligent eviction policies
+  - L3: Index partition caching for hot data
+- [ ] **Semantic Caching Implementation**
+  - Query similarity clustering for cache sharing
+  - Semantic threshold tuning and hit prediction
+  - Integration with existing personalization system
+
+#### Phase 4: Advanced Index Optimizations (6 weeks)
+- [ ] **Quantization Implementation**
+  - Product Quantization (PQ) for 8x-16x memory reduction
+  - Scalar quantization with configurable precision
+  - Reranking with full precision for accuracy
+- [ ] **Hierarchical Indexing & GPU Acceleration**
+  - Two-level HNSW (coarse + fine resolution)
+  - Incremental index updates with quality monitoring
+  - Initial GPU acceleration framework (CUDA/OpenCL)
+
+#### Success Metrics & Targets
+- **Query Latency**: <100ms p95 (from ~400ms baseline)
+- **Throughput**: >200 QPS (from ~100 QPS baseline) 
+- **Memory Usage**: <1.2GB/1M vectors (from ~2GB baseline)
+- **Cache Hit Rate**: >60% for typical LLM workloads
+- **Search Quality**: Maintain >95% recall@k accuracy
 
 ### 3. LLM-Specific Optimizations
 - [ ] **Memory-Aligned Vector Storage**
@@ -431,3 +460,14 @@ If you're interested in working on any of these features, please:
 2. Submit a proposal/RFC for significant features
 3. Coordinate with maintainers to avoid duplicate work
 4. Consider the AI integration architecture when proposing changes
+
+### Technical Planning Documents
+
+For major feature implementation, refer to detailed planning documents:
+
+- **Performance Optimizations**: [`docs/PERFORMANCE_OPTIMIZATION_PLAN.md`](docs/PERFORMANCE_OPTIMIZATION_PLAN.md)
+  - 67-page comprehensive roadmap for query optimization, caching, and GPU acceleration
+  - 4-phase implementation strategy with timelines and success metrics
+  - Resource requirements, risk assessment, and deployment planning
+
+Additional technical documentation available in the [`docs/`](docs/) directory.

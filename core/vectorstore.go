@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/dshills/EmbeddixDB/core/performance"
 )
 
 // VectorStoreImpl implements the VectorStore interface
@@ -13,17 +15,30 @@ type VectorStoreImpl struct {
 	persistence  Persistence
 	indexes      map[string]Index // collection name -> index
 	indexFactory IndexFactory
+	profiler     *performance.Profiler
 }
 
 
 
 // NewVectorStore creates a new vector store with the given persistence layer and index factory
 func NewVectorStore(persistence Persistence, indexFactory IndexFactory) *VectorStoreImpl {
+	// Initialize with default profiling configuration
+	profilerConfig := performance.DefaultProfilingConfig()
+	profilerConfig.Enabled = false // Disabled by default, can be enabled via SetProfiler
+	
 	return &VectorStoreImpl{
 		persistence:  persistence,
 		indexes:      make(map[string]Index),
 		indexFactory: indexFactory,
+		profiler:     performance.NewProfiler(profilerConfig),
 	}
+}
+
+// SetProfiler sets a custom profiler for performance monitoring
+func (vs *VectorStoreImpl) SetProfiler(profiler *performance.Profiler) {
+	vs.mu.Lock()
+	defer vs.mu.Unlock()
+	vs.profiler = profiler
 }
 
 // CreateCollection creates a new collection with the specified configuration
@@ -134,13 +149,18 @@ func (vs *VectorStoreImpl) DeleteVector(ctx context.Context, collection, id stri
 
 // Search performs vector similarity search in the specified collection
 func (vs *VectorStoreImpl) Search(ctx context.Context, collection string, req SearchRequest) ([]SearchResult, error) {
+	tracker := vs.profiler.TrackOperation("search")
+	defer tracker.Finish()
+	
 	// Get collection to validate search request
 	coll, err := vs.persistence.LoadCollection(ctx, collection)
 	if err != nil {
+		tracker.FinishWithError()
 		return nil, fmt.Errorf("collection %s not found: %w", collection, err)
 	}
 	
 	if err := ValidateSearchRequest(req, coll.Dimension); err != nil {
+		tracker.FinishWithError()
 		return nil, fmt.Errorf("invalid search request: %w", err)
 	}
 	
@@ -150,11 +170,13 @@ func (vs *VectorStoreImpl) Search(ctx context.Context, collection string, req Se
 	vs.mu.RUnlock()
 	
 	if !exists {
+		tracker.FinishWithError()
 		return nil, fmt.Errorf("index not found for collection %s", collection)
 	}
 	
 	results, err := index.Search(req.Query, req.TopK, req.Filter)
 	if err != nil {
+		tracker.FinishWithError()
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
 	

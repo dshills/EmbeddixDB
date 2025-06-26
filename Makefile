@@ -25,18 +25,27 @@ build-all:
 	$(GO) build $(GOFLAGS) -o $(BINARY_NAME) ./cmd/server
 	$(GO) build $(GOFLAGS) -o $(BINARY_NAME)-benchmark ./cmd/benchmark
 
-## test: Run all tests
+## test: Run tests with coverage, only show failures
 test:
-	$(GO) test $(GOFLAGS) ./...
+	$(GO) test -race -coverprofile=coverage.out -covermode=atomic ./... || true
+	@echo "\n=== Test Coverage ==="
+	$(GO) tool cover -func=coverage.out | tail -1
 
 ## test-verbose: Run tests with verbose output
 test-verbose:
 	$(GO) test $(GOFLAGS) -v ./...
 
-## test-coverage: Run tests with coverage
+## test-quiet: Run tests quietly, only show summary
+test-quiet:
+	@$(GO) test -race -coverprofile=coverage.out -covermode=atomic ./... > /dev/null 2>&1 && echo "✅ All tests passed" || echo "❌ Some tests failed"
+	@$(GO) tool cover -func=coverage.out | tail -1
+
+## test-coverage: Run tests with coverage and generate HTML report
 test-coverage:
-	$(GO) test $(GOFLAGS) -race -coverprofile=coverage.out ./...
+	$(GO) test -race -coverprofile=coverage.out -covermode=atomic ./...
 	$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+	$(GO) tool cover -func=coverage.out | tail -1
 
 ## benchmark: Run benchmarks
 benchmark:

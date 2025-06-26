@@ -267,11 +267,23 @@ func (ic *IntentClassifier) Classify(query string, entities []QueryEntity) Exten
 	lowerQuery := strings.ToLower(query)
 	scores := make(map[string]float64)
 
-	// Pattern matching
+	// Pattern matching with priority-based scoring
+	patternWeights := map[string]float64{
+		"transactional": 0.8, // Higher weight for action-based queries
+		"question":      0.7, // High weight for question patterns
+		"navigation":    0.6,
+		"lookup":        0.4, // Lower weight for generic lookup patterns
+	}
+	
 	for intentType, patterns := range ic.patterns {
+		weight := patternWeights[intentType]
+		if weight == 0 {
+			weight = 0.5 // Default weight
+		}
+		
 		for _, pattern := range patterns {
 			if pattern.MatchString(lowerQuery) {
-				scores[intentType] += 0.5
+				scores[intentType] += weight
 			}
 		}
 	}
@@ -315,10 +327,16 @@ func (ic *IntentClassifier) Classify(query string, entities []QueryEntity) Exten
 		"complexity":  ic.calculateComplexity(query),
 	}
 
+	// Normalize confidence to be between 0 and 1
+	confidence := bestScore
+	if confidence > 1.0 {
+		confidence = 1.0
+	}
+	
 	return ExtendedQueryIntent{
 		QueryIntent: QueryIntent{
 			Type:       bestIntent,
-			Confidence: bestScore,
+			Confidence: confidence,
 			Subtype:    "", // Can be filled based on more detailed classification
 		},
 		Domain:     domain,
@@ -330,7 +348,7 @@ func (ic *IntentClassifier) Classify(query string, entities []QueryEntity) Exten
 // detectDomain identifies the query domain
 func (ic *IntentClassifier) detectDomain(query string) string {
 	domains := map[string][]string{
-		"tech":     {"software", "code", "programming", "computer", "technology", "api", "database", "python", "java", "tensorflow", "machine", "learning"},
+		"tech":     {"software", "code", "programming", "computer", "technology", "api", "database", "python", "java", "tensorflow", "machine", "learning", "ai", "artificial", "intelligence", "vector", "embedding"},
 		"business": {"company", "revenue", "sales", "marketing", "customer", "profit", "market"},
 		"science":  {"research", "study", "experiment", "theory", "hypothesis", "scientific"},
 		"health":   {"medical", "health", "disease", "treatment", "doctor", "patient", "medicine"},

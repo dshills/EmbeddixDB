@@ -9,14 +9,17 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/dshills/EmbeddixDB/core"
+	"github.com/dshills/EmbeddixDB/core/search"
 )
 
 // Server represents the REST API server
 type Server struct {
-	vectorStore core.VectorStore
-	router      *mux.Router
-	httpServer  *http.Server
-	config      ServerConfig
+	vectorStore               core.VectorStore
+	router                    *mux.Router
+	httpServer                *http.Server
+	config                    ServerConfig
+	personalizedSearchManager *search.PersonalizedSearchManager
+	feedbackManager           *search.FeedbackManager
 }
 
 // ServerConfig holds server configuration
@@ -44,6 +47,24 @@ func NewServer(vectorStore core.VectorStore, config ServerConfig) *Server {
 	s := &Server{
 		vectorStore: vectorStore,
 		config:      config,
+	}
+
+	s.setupRoutes()
+	return s
+}
+
+// NewServerWithFeedback creates a new API server with feedback capabilities
+func NewServerWithFeedback(
+	vectorStore core.VectorStore,
+	config ServerConfig,
+	personalizedSearchManager *search.PersonalizedSearchManager,
+	feedbackManager *search.FeedbackManager,
+) *Server {
+	s := &Server{
+		vectorStore:               vectorStore,
+		config:                    config,
+		personalizedSearchManager: personalizedSearchManager,
+		feedbackManager:           feedbackManager,
 	}
 
 	s.setupRoutes()
@@ -82,6 +103,11 @@ func (s *Server) setupRoutes() {
 	// Stats endpoints
 	s.router.HandleFunc("/stats", s.handleStats).Methods("GET")
 	s.router.HandleFunc("/collections/{collection}/stats", s.handleCollectionStats).Methods("GET")
+	
+	// Feedback and personalization endpoints (if available)
+	if s.personalizedSearchManager != nil || s.feedbackManager != nil {
+		s.RegisterFeedbackRoutes(s.router)
+	}
 	
 	// Documentation endpoints
 	s.setupSwaggerUI()

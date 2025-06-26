@@ -114,7 +114,28 @@ func (ce *ConceptExpander) ExpandConcepts(tokens []string, intent ExtendedQueryI
 
 	expandedTerms := make(map[string]bool)
 	
-	// Process each token
+	// First, check for multi-token concepts (2-token combinations)
+	for i := 0; i < len(tokens)-1; i++ {
+		twoTokenPhrase := strings.ToLower(tokens[i]) + " " + strings.ToLower(tokens[i+1])
+		
+		// Check general concept map
+		if concepts, exists := ce.conceptMap[twoTokenPhrase]; exists {
+			for _, concept := range concepts {
+				expandedTerms[concept] = true
+			}
+		}
+		
+		// Check domain-specific concepts
+		if domainConcepts, exists := ce.domainConcepts[intent.Domain]; exists {
+			if concepts, exists := domainConcepts[twoTokenPhrase]; exists {
+				for _, concept := range concepts {
+					expandedTerms[concept] = true
+				}
+			}
+		}
+	}
+	
+	// Process each token individually
 	for _, token := range tokens {
 		lowerToken := strings.ToLower(token)
 		

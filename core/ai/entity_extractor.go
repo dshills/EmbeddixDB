@@ -222,6 +222,8 @@ func (ee *EntityExtractor) initializeEntityPatterns() {
 			regexp.MustCompile(`\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b`),
 			// Month Day, Year
 			regexp.MustCompile(`\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b`),
+			// Month Year (no day)
+			regexp.MustCompile(`\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b`),
 			// Day Month Year
 			regexp.MustCompile(`\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b`),
 			// Year only

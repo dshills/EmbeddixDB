@@ -28,6 +28,8 @@ type SearchRequest struct {
 	TopK           int               `json:"top_k"`
 	Filter         map[string]string `json:"filter,omitempty"`
 	IncludeVectors bool              `json:"include_vectors,omitempty"`
+	UserID         string            `json:"user_id,omitempty"`         // For personalized search
+	DistanceMetric DistanceMetric    `json:"distance_metric,omitempty"` // Override collection default
 }
 
 // SearchResult represents a single search result

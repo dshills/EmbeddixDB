@@ -2,7 +2,7 @@ package index
 
 import (
 	"fmt"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 )
 

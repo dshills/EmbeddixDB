@@ -13,7 +13,7 @@ func TestRangeSearch(t *testing.T) {
 			return NewFlatIndex(dim, distance)
 		})
 	})
-	
+
 	// Test with HNSW index
 	t.Run("HNSWIndex", func(t *testing.T) {
 		testRangeSearchWithIndex(t, func(dim int, distance core.DistanceMetric) core.Index {
@@ -34,36 +34,36 @@ func TestRangeSearch(t *testing.T) {
 func testRangeSearchWithIndex(t *testing.T, createIndex func(int, core.DistanceMetric) core.Index) {
 	dimension := 3
 	index := createIndex(dimension, core.DistanceL2)
-	
+
 	// Add test vectors with known distances
 	// For L2 distance: sqrt((x1-x2)² + (y1-y2)² + (z1-z2)²)
 	vectors := []core.Vector{
 		{ID: "v1", Values: []float32{0, 0, 0}, Metadata: map[string]string{"type": "origin"}},
-		{ID: "v2", Values: []float32{1, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},     // Distance 1 from origin
-		{ID: "v3", Values: []float32{0, 1, 0}, Metadata: map[string]string{"type": "y-axis"}},     // Distance 1 from origin
-		{ID: "v4", Values: []float32{0, 0, 1}, Metadata: map[string]string{"type": "z-axis"}},     // Distance 1 from origin
-		{ID: "v5", Values: []float32{1, 1, 0}, Metadata: map[string]string{"type": "xy-plane"}},   // Distance √2 ≈ 1.414 from origin
-		{ID: "v6", Values: []float32{1, 1, 1}, Metadata: map[string]string{"type": "diagonal"}},   // Distance √3 ≈ 1.732 from origin
-		{ID: "v7", Values: []float32{2, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},     // Distance 2 from origin
-		{ID: "v8", Values: []float32{3, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},     // Distance 3 from origin
+		{ID: "v2", Values: []float32{1, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},   // Distance 1 from origin
+		{ID: "v3", Values: []float32{0, 1, 0}, Metadata: map[string]string{"type": "y-axis"}},   // Distance 1 from origin
+		{ID: "v4", Values: []float32{0, 0, 1}, Metadata: map[string]string{"type": "z-axis"}},   // Distance 1 from origin
+		{ID: "v5", Values: []float32{1, 1, 0}, Metadata: map[string]string{"type": "xy-plane"}}, // Distance √2 ≈ 1.414 from origin
+		{ID: "v6", Values: []float32{1, 1, 1}, Metadata: map[string]string{"type": "diagonal"}}, // Distance √3 ≈ 1.732 from origin
+		{ID: "v7", Values: []float32{2, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},   // Distance 2 from origin
+		{ID: "v8", Values: []float32{3, 0, 0}, Metadata: map[string]string{"type": "x-axis"}},   // Distance 3 from origin
 	}
-	
+
 	for _, vec := range vectors {
 		err := index.Add(vec)
 		if err != nil {
 			t.Fatalf("Failed to add vector %s: %v", vec.ID, err)
 		}
 	}
-	
+
 	// Test cases
 	tests := []struct {
-		name           string
-		query          []float32
-		radius         float32
-		filter         map[string]string
-		limit          int
-		expectedCount  int
-		expectedIDs    []string
+		name          string
+		query         []float32
+		radius        float32
+		filter        map[string]string
+		limit         int
+		expectedCount int
+		expectedIDs   []string
 	}{
 		{
 			name:          "Find vectors within radius 1.0 from origin",
@@ -116,44 +116,44 @@ func testRangeSearchWithIndex(t *testing.T, createIndex func(int, core.DistanceM
 			expectedIDs:   []string{},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			results, err := index.RangeSearch(tt.query, tt.radius, tt.filter, tt.limit)
 			if err != nil {
 				t.Fatalf("Range search failed: %v", err)
 			}
-			
+
 			if len(results) != tt.expectedCount {
 				t.Errorf("Expected %d results, got %d", tt.expectedCount, len(results))
 			}
-			
+
 			// Check specific IDs if provided
 			if len(tt.expectedIDs) > 0 {
 				foundIDs := make(map[string]bool)
 				for _, res := range results {
 					foundIDs[res.ID] = true
 				}
-				
+
 				for _, expectedID := range tt.expectedIDs {
 					if !foundIDs[expectedID] {
 						t.Errorf("Expected to find ID %s in results", expectedID)
 					}
 				}
 			}
-			
+
 			// Verify all results are within radius
 			for _, res := range results {
 				if res.Score > tt.radius {
-					t.Errorf("Result %s has distance %f, exceeds radius %f", 
+					t.Errorf("Result %s has distance %f, exceeds radius %f",
 						res.ID, res.Score, tt.radius)
 				}
 			}
-			
+
 			// Verify results are sorted by distance
 			for i := 1; i < len(results); i++ {
 				if results[i].Score < results[i-1].Score {
-					t.Errorf("Results not sorted: %f < %f at position %d", 
+					t.Errorf("Results not sorted: %f < %f at position %d",
 						results[i].Score, results[i-1].Score, i)
 				}
 			}
@@ -163,31 +163,31 @@ func testRangeSearchWithIndex(t *testing.T, createIndex func(int, core.DistanceM
 
 func TestRangeSearchWithDifferentDistanceMetrics(t *testing.T) {
 	testCases := []struct {
-		name     string
-		distance string
+		name      string
+		distance  string
 		dimension int
-		vectors  []core.Vector
-		query    []float32
-		radius   float32
-		expected int
+		vectors   []core.Vector
+		query     []float32
+		radius    float32
+		expected  int
 	}{
 		{
-			name:     "Cosine similarity",
-			distance: "cosine",
+			name:      "Cosine similarity",
+			distance:  "cosine",
 			dimension: 2,
 			vectors: []core.Vector{
-				{ID: "v1", Values: []float32{1, 0}},        // angle 0°, cosine distance 0
+				{ID: "v1", Values: []float32{1, 0}},         // angle 0°, cosine distance 0
 				{ID: "v2", Values: []float32{0.707, 0.707}}, // angle 45°, cosine distance ≈ 0.293
-				{ID: "v3", Values: []float32{0, 1}},        // angle 90°, cosine distance 1
-				{ID: "v4", Values: []float32{-1, 0}},       // angle 180°, cosine distance 2
+				{ID: "v3", Values: []float32{0, 1}},         // angle 90°, cosine distance 1
+				{ID: "v4", Values: []float32{-1, 0}},        // angle 180°, cosine distance 2
 			},
 			query:    []float32{1, 0},
 			radius:   0.5,
 			expected: 2, // v1 and v2
 		},
 		{
-			name:     "Dot product",
-			distance: "dot",
+			name:      "Dot product",
+			distance:  "dot",
 			dimension: 2,
 			vectors: []core.Vector{
 				{ID: "v1", Values: []float32{1, 1}},
@@ -200,7 +200,7 @@ func TestRangeSearchWithDifferentDistanceMetrics(t *testing.T) {
 			expected: 2,    // v1 (dot=-2) and v2 (dot=-4)
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name+"_FlatIndex", func(t *testing.T) {
 			var metric core.DistanceMetric
@@ -215,7 +215,7 @@ func TestRangeSearchWithDifferentDistanceMetrics(t *testing.T) {
 			index := NewFlatIndex(tc.dimension, metric)
 			testDistanceMetric(t, index, tc)
 		})
-		
+
 		t.Run(tc.name+"_HNSWIndex", func(t *testing.T) {
 			var metric core.DistanceMetric
 			switch tc.distance {
@@ -242,13 +242,13 @@ func TestRangeSearchWithDifferentDistanceMetrics(t *testing.T) {
 }
 
 func testDistanceMetric(t *testing.T, index core.Index, tc struct {
-	name     string
-	distance string
+	name      string
+	distance  string
 	dimension int
-	vectors  []core.Vector
-	query    []float32
-	radius   float32
-	expected int
+	vectors   []core.Vector
+	query     []float32
+	radius    float32
+	expected  int
 }) {
 	// Add vectors
 	for _, vec := range tc.vectors {
@@ -257,15 +257,15 @@ func testDistanceMetric(t *testing.T, index core.Index, tc struct {
 			t.Fatalf("Failed to add vector %s: %v", vec.ID, err)
 		}
 	}
-	
+
 	// Perform range search
 	results, err := index.RangeSearch(tc.query, tc.radius, nil, 0)
 	if err != nil {
 		t.Fatalf("Range search failed: %v", err)
 	}
-	
+
 	if len(results) != tc.expected {
-		t.Errorf("Expected %d results for %s distance, got %d", 
+		t.Errorf("Expected %d results for %s distance, got %d",
 			tc.expected, tc.distance, len(results))
 	}
 }
@@ -273,42 +273,42 @@ func testDistanceMetric(t *testing.T, index core.Index, tc struct {
 func TestRangeSearchEdgeCases(t *testing.T) {
 	t.Run("EmptyIndex", func(t *testing.T) {
 		index := NewFlatIndex(2, core.DistanceL2)
-		
+
 		results, err := index.RangeSearch([]float32{0, 0}, 1.0, nil, 0)
 		if err != nil {
 			t.Fatalf("Range search failed: %v", err)
 		}
-		
+
 		if len(results) != 0 {
 			t.Errorf("Expected 0 results from empty index, got %d", len(results))
 		}
 	})
-	
+
 	t.Run("InvalidDimension", func(t *testing.T) {
 		index := NewFlatIndex(2, core.DistanceL2)
-		
+
 		// Add a vector
 		index.Add(core.Vector{ID: "v1", Values: []float32{1, 0}})
-		
+
 		// Search with wrong dimension
 		_, err := index.RangeSearch([]float32{0}, 1.0, nil, 0)
 		if err == nil {
 			t.Error("Expected error for wrong dimension query")
 		}
 	})
-	
+
 	t.Run("ZeroRadius", func(t *testing.T) {
 		index := NewFlatIndex(2, core.DistanceL2)
-		
+
 		// Add vectors
 		index.Add(core.Vector{ID: "v1", Values: []float32{1, 0}})
 		index.Add(core.Vector{ID: "v2", Values: []float32{0, 1}})
-		
+
 		results, err := index.RangeSearch([]float32{1, 0}, 0.0, nil, 0)
 		if err != nil {
 			t.Fatalf("Range search failed: %v", err)
 		}
-		
+
 		// Should only find exact match if any
 		if len(results) > 1 {
 			t.Errorf("Expected at most 1 result with radius 0, got %d", len(results))

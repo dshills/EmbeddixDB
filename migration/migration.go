@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"time"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 )
 
@@ -20,7 +20,7 @@ type Migration struct {
 	Description string           `json:"description"`
 	UpFunc      func(ctx context.Context, db core.Persistence) error
 	DownFunc    func(ctx context.Context, db core.Persistence) error
-	CreatedAt   time.Time        `json:"created_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // MigrationRecord tracks applied migrations
@@ -62,11 +62,11 @@ func (m *Migrator) GetCurrentVersion(ctx context.Context) (MigrationVersion, err
 	if err != nil {
 		return 0, err
 	}
-	
+
 	if len(records) == 0 {
 		return 0, nil
 	}
-	
+
 	// Return the highest version
 	var maxVersion MigrationVersion
 	for _, record := range records {
@@ -74,7 +74,7 @@ func (m *Migrator) GetCurrentVersion(ctx context.Context) (MigrationVersion, err
 			maxVersion = record.Version
 		}
 	}
-	
+
 	return maxVersion, nil
 }
 
@@ -92,11 +92,11 @@ func (m *Migrator) Migrate(ctx context.Context, targetVersion MigrationVersion) 
 	if err != nil {
 		return fmt.Errorf("failed to get current version: %w", err)
 	}
-	
+
 	if currentVersion == targetVersion {
 		return nil // Already at target version
 	}
-	
+
 	if currentVersion < targetVersion {
 		return m.migrateUp(ctx, currentVersion, targetVersion)
 	} else {
@@ -119,29 +119,29 @@ func (m *Migrator) migrateUp(ctx context.Context, currentVersion, targetVersion 
 		if version > targetVersion {
 			break
 		}
-		
+
 		migration, exists := m.migrations[version]
 		if !exists {
 			return fmt.Errorf("migration %d not found", version)
 		}
-		
+
 		if migration.UpFunc == nil {
 			return fmt.Errorf("migration %d has no up function", version)
 		}
-		
+
 		fmt.Printf("Applying migration %d: %s\n", version, migration.Name)
-		
+
 		if err := migration.UpFunc(ctx, m.persistence); err != nil {
 			return fmt.Errorf("failed to apply migration %d: %w", version, err)
 		}
-		
+
 		if err := m.recordMigration(ctx, migration); err != nil {
 			return fmt.Errorf("failed to record migration %d: %w", version, err)
 		}
-		
+
 		fmt.Printf("Migration %d applied successfully\n", version)
 	}
-	
+
 	return nil
 }
 
@@ -153,7 +153,7 @@ func (m *Migrator) migrateDown(ctx context.Context, currentVersion, targetVersio
 	sort.Slice(versions, func(i, j int) bool {
 		return versions[i] > versions[j]
 	})
-	
+
 	for _, version := range versions {
 		if version > currentVersion {
 			continue
@@ -161,29 +161,29 @@ func (m *Migrator) migrateDown(ctx context.Context, currentVersion, targetVersio
 		if version <= targetVersion {
 			break
 		}
-		
+
 		migration, exists := m.migrations[version]
 		if !exists {
 			return fmt.Errorf("migration %d not found", version)
 		}
-		
+
 		if migration.DownFunc == nil {
 			return fmt.Errorf("migration %d has no down function", version)
 		}
-		
+
 		fmt.Printf("Rolling back migration %d: %s\n", version, migration.Name)
-		
+
 		if err := migration.DownFunc(ctx, m.persistence); err != nil {
 			return fmt.Errorf("failed to rollback migration %d: %w", version, err)
 		}
-		
+
 		if err := m.removeMigrationRecord(ctx, version); err != nil {
 			return fmt.Errorf("failed to remove migration record %d: %w", version, err)
 		}
-		
+
 		fmt.Printf("Migration %d rolled back successfully\n", version)
 	}
-	
+
 	return nil
 }
 
@@ -195,12 +195,12 @@ func (m *Migrator) getAppliedMigrations(ctx context.Context) ([]MigrationRecord,
 		// If no migration records exist, return empty slice
 		return []MigrationRecord{}, nil
 	}
-	
+
 	var records []MigrationRecord
 	if err := json.Unmarshal(data, &records); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal migration records: %w", err)
 	}
-	
+
 	return records, nil
 }
 
@@ -210,14 +210,14 @@ func (m *Migrator) recordMigration(ctx context.Context, migration *Migration) er
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if migration is already recorded
 	for _, record := range records {
 		if record.Version == migration.Version {
 			return nil // Already recorded
 		}
 	}
-	
+
 	// Add new record
 	newRecord := MigrationRecord{
 		Version:   migration.Version,
@@ -225,15 +225,15 @@ func (m *Migrator) recordMigration(ctx context.Context, migration *Migration) er
 		AppliedAt: time.Now(),
 		Checksum:  m.calculateChecksum(migration),
 	}
-	
+
 	records = append(records, newRecord)
-	
+
 	// Save updated records
 	data, err := json.Marshal(records)
 	if err != nil {
 		return fmt.Errorf("failed to marshal migration records: %w", err)
 	}
-	
+
 	return m.persistence.SaveIndexState(ctx, "__migrations__", data)
 }
 
@@ -243,7 +243,7 @@ func (m *Migrator) removeMigrationRecord(ctx context.Context, version MigrationV
 	if err != nil {
 		return err
 	}
-	
+
 	// Filter out the version to remove
 	filteredRecords := make([]MigrationRecord, 0)
 	for _, record := range records {
@@ -251,13 +251,13 @@ func (m *Migrator) removeMigrationRecord(ctx context.Context, version MigrationV
 			filteredRecords = append(filteredRecords, record)
 		}
 	}
-	
+
 	// Save updated records
 	data, err := json.Marshal(filteredRecords)
 	if err != nil {
 		return fmt.Errorf("failed to marshal migration records: %w", err)
 	}
-	
+
 	return m.persistence.SaveIndexState(ctx, "__migrations__", data)
 }
 
@@ -277,12 +277,12 @@ func (m *Migrator) ListMigrations(ctx context.Context) ([]MigrationInfo, error) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	appliedMap := make(map[MigrationVersion]MigrationRecord)
 	for _, record := range appliedRecords {
 		appliedMap[record.Version] = record
 	}
-	
+
 	var migrations []MigrationInfo
 	for _, version := range m.versions {
 		migration := m.migrations[version]
@@ -292,15 +292,15 @@ func (m *Migrator) ListMigrations(ctx context.Context) ([]MigrationInfo, error) 
 			Description: migration.Description,
 			CreatedAt:   migration.CreatedAt,
 		}
-		
+
 		if record, applied := appliedMap[version]; applied {
 			info.Applied = true
 			info.AppliedAt = &record.AppliedAt
 		}
-		
+
 		migrations = append(migrations, info)
 	}
-	
+
 	return migrations, nil
 }
 
@@ -320,19 +320,19 @@ func (m *Migrator) ValidateMigrations(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	for _, record := range records {
 		migration, exists := m.migrations[record.Version]
 		if !exists {
 			return fmt.Errorf("applied migration %d not found in migration list", record.Version)
 		}
-		
+
 		expectedChecksum := m.calculateChecksum(migration)
 		if record.Checksum != expectedChecksum {
-			return fmt.Errorf("migration %d checksum mismatch: expected %s, got %s", 
+			return fmt.Errorf("migration %d checksum mismatch: expected %s, got %s",
 				record.Version, expectedChecksum, record.Checksum)
 		}
 	}
-	
+
 	return nil
 }

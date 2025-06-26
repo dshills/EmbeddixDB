@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 )
 
@@ -31,69 +31,69 @@ func (f *FlatIndex) Add(vector core.Vector) error {
 	if err := core.ValidateVector(vector); err != nil {
 		return fmt.Errorf("invalid vector: %w", err)
 	}
-	
+
 	if err := core.ValidateVectorDimension(vector, f.dimension); err != nil {
 		return fmt.Errorf("dimension mismatch: %w", err)
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.vectors[vector.ID] = vector
 	return nil
-}// Search performs brute-force search for k nearest neighbors
+} // Search performs brute-force search for k nearest neighbors
 func (f *FlatIndex) Search(query []float32, k int, filter map[string]string) ([]core.SearchResult, error) {
 	if len(query) != f.dimension {
-		return nil, fmt.Errorf("query dimension %d does not match index dimension %d", 
+		return nil, fmt.Errorf("query dimension %d does not match index dimension %d",
 			len(query), f.dimension)
 	}
-	
+
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	var results []core.SearchResult
-	
+
 	// Calculate distances for all vectors
 	for _, vector := range f.vectors {
 		// Apply metadata filter if specified
 		if !matchesFilter(vector.Metadata, filter) {
 			continue
 		}
-		
+
 		distance, err := core.CalculateDistance(query, vector.Values, f.distanceMetric)
 		if err != nil {
 			return nil, fmt.Errorf("distance calculation failed: %w", err)
 		}
-		
+
 		result := core.SearchResult{
 			ID:       vector.ID,
 			Score:    distance,
 			Metadata: vector.Metadata,
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	// Sort by distance (ascending for distance metrics)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score < results[j].Score
 	})
-	
+
 	// Return top k results
 	if k > len(results) {
 		k = len(results)
 	}
-	
+
 	return results[:k], nil
-}// Delete removes a vector from the index
+} // Delete removes a vector from the index
 func (f *FlatIndex) Delete(id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if _, exists := f.vectors[id]; !exists {
 		return fmt.Errorf("vector with ID %s not found", id)
 	}
-	
+
 	delete(f.vectors, id)
 	return nil
 }
@@ -108,7 +108,7 @@ func (f *FlatIndex) RangeSearch(query []float32, radius float32, filter map[stri
 	defer f.mu.RUnlock()
 
 	results := make([]core.SearchResult, 0)
-	
+
 	// Check all vectors
 	for id, vec := range f.vectors {
 		// Apply metadata filter if provided
@@ -174,28 +174,28 @@ func (f *FlatIndex) Type() string {
 
 // flatIndexState represents the serializable state of a FlatIndex
 type flatIndexState struct {
-	Vectors        map[string]core.Vector   `json:"vectors"`
-	Dimension      int                      `json:"dimension"`
-	DistanceMetric core.DistanceMetric      `json:"distance_metric"`
+	Vectors        map[string]core.Vector `json:"vectors"`
+	Dimension      int                    `json:"dimension"`
+	DistanceMetric core.DistanceMetric    `json:"distance_metric"`
 }
 
 // Serialize converts the index state to bytes
 func (f *FlatIndex) Serialize() ([]byte, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	// Create a deep copy of vectors to avoid concurrent modification during JSON marshaling
 	vectorsCopy := make(map[string]core.Vector, len(f.vectors))
 	for id, vec := range f.vectors {
 		vectorsCopy[id] = vec
 	}
-	
+
 	state := flatIndexState{
 		Vectors:        vectorsCopy,
 		Dimension:      f.dimension,
 		DistanceMetric: f.distanceMetric,
 	}
-	
+
 	return json.Marshal(state)
 }
 
@@ -205,14 +205,14 @@ func (f *FlatIndex) Deserialize(data []byte) error {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return fmt.Errorf("failed to unmarshal flat index state: %w", err)
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.vectors = state.Vectors
 	f.dimension = state.Dimension
 	f.distanceMetric = state.DistanceMetric
-	
+
 	return nil
 }
 
@@ -221,12 +221,12 @@ func matchesFilter(metadata, filter map[string]string) bool {
 	if len(filter) == 0 {
 		return true
 	}
-	
+
 	for key, value := range filter {
 		if metaValue, exists := metadata[key]; !exists || metaValue != value {
 			return false
 		}
 	}
-	
+
 	return true
 }

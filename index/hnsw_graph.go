@@ -3,15 +3,15 @@ package index
 import (
 	"math/rand"
 	"sync"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 )
 
 // HNSWNode represents a node in the HNSW graph
 type HNSWNode struct {
-	ID       string
-	Vector   core.Vector
-	Level    int
+	ID     string
+	Vector core.Vector
+	Level  int
 	// Connections at each level: level -> set of connected node IDs
 	Connections map[int]map[string]bool
 }
@@ -50,22 +50,22 @@ func (n *HNSWNode) GetConnections(level int) []string {
 	if !exists {
 		return nil
 	}
-	
+
 	result := make([]string, 0, len(connections))
 	for nodeID := range connections {
 		result = append(result, nodeID)
 	}
 	return result
-}// HNSWGraph represents the HNSW graph structure
+} // HNSWGraph represents the HNSW graph structure
 type HNSWGraph struct {
-	mu           sync.RWMutex
-	nodes        map[string]*HNSWNode
-	entryPoint   *HNSWNode
-	config       HNSWConfig
-	rng          *rand.Rand
-	dimension    int
+	mu             sync.RWMutex
+	nodes          map[string]*HNSWNode
+	entryPoint     *HNSWNode
+	config         HNSWConfig
+	rng            *rand.Rand
+	dimension      int
 	distanceMetric core.DistanceMetric
-	size         int
+	size           int
 }
 
 // NewHNSWGraph creates a new HNSW graph

@@ -12,50 +12,50 @@ import (
 
 // QuantizedHNSW implements HNSW with Product Quantization for memory efficiency
 type QuantizedHNSW struct {
-	*HNSWIndex                             // Embed standard HNSW
-	quantizer    quantization.Quantizer     // Vector quantizer
-	quantizedDB  map[string][]byte          // Quantized vector storage
-	originalDB   map[string][]float32       // Original vectors for reranking
-	distanceTable quantization.DistanceTable // Cached distance table for current query
-	rerankerConfig RerankerConfig           // Reranking configuration
-	mu           sync.RWMutex               // Protects quantized storage
+	*HNSWIndex                                // Embed standard HNSW
+	quantizer      quantization.Quantizer     // Vector quantizer
+	quantizedDB    map[string][]byte          // Quantized vector storage
+	originalDB     map[string][]float32       // Original vectors for reranking
+	distanceTable  quantization.DistanceTable // Cached distance table for current query
+	rerankerConfig RerankerConfig             // Reranking configuration
+	mu             sync.RWMutex               // Protects quantized storage
 }
 
 // RerankerConfig configures the reranking pipeline
 type RerankerConfig struct {
-	Enable           bool    `json:"enable"`            // Enable reranking
-	RerankerRatio    float64 `json:"reranker_ratio"`    // Ratio of candidates to rerank (e.g., 0.1 = 10%)
-	MinCandidates    int     `json:"min_candidates"`    // Minimum candidates for reranking
-	MaxCandidates    int     `json:"max_candidates"`    // Maximum candidates for reranking
-	UseAsymmetric    bool    `json:"use_asymmetric"`    // Use asymmetric distance for reranking
-	CacheDistTable   bool    `json:"cache_dist_table"`  // Cache distance tables
+	Enable         bool    `json:"enable"`           // Enable reranking
+	RerankerRatio  float64 `json:"reranker_ratio"`   // Ratio of candidates to rerank (e.g., 0.1 = 10%)
+	MinCandidates  int     `json:"min_candidates"`   // Minimum candidates for reranking
+	MaxCandidates  int     `json:"max_candidates"`   // Maximum candidates for reranking
+	UseAsymmetric  bool    `json:"use_asymmetric"`   // Use asymmetric distance for reranking
+	CacheDistTable bool    `json:"cache_dist_table"` // Cache distance tables
 }
 
 // DefaultRerankerConfig returns sensible defaults
 func DefaultRerankerConfig() RerankerConfig {
 	return RerankerConfig{
-		Enable:        true,
-		RerankerRatio: 0.2,  // Rerank top 20% of candidates
-		MinCandidates: 10,
-		MaxCandidates: 100,
-		UseAsymmetric: true,
+		Enable:         true,
+		RerankerRatio:  0.2, // Rerank top 20% of candidates
+		MinCandidates:  10,
+		MaxCandidates:  100,
+		UseAsymmetric:  true,
 		CacheDistTable: true,
 	}
 }
 
 // QuantizedHNSWConfig extends HNSWConfig with quantization settings
 type QuantizedHNSWConfig struct {
-	HNSWConfig          HNSWConfig                  `json:"hnsw_config"`
+	HNSWConfig          HNSWConfig                   `json:"hnsw_config"`
 	QuantizerConfig     quantization.QuantizerConfig `json:"quantizer_config"`
 	RerankerConfig      RerankerConfig               `json:"reranker_config"`
-	KeepOriginalVectors bool                        `json:"keep_original_vectors"` // Keep originals for reranking
+	KeepOriginalVectors bool                         `json:"keep_original_vectors"` // Keep originals for reranking
 }
 
 // DefaultQuantizedHNSWConfig returns sensible defaults
 func DefaultQuantizedHNSWConfig(dimension int, distanceMetric core.DistanceMetric) QuantizedHNSWConfig {
 	return QuantizedHNSWConfig{
-		HNSWConfig:          DefaultHNSWConfig(),
-		QuantizerConfig:     quantization.QuantizerConfig{
+		HNSWConfig: DefaultHNSWConfig(),
+		QuantizerConfig: quantization.QuantizerConfig{
 			Type:             quantization.ProductQuantization,
 			Dimension:        dimension,
 			MemoryBudgetMB:   10, // 10MB budget
@@ -75,7 +75,7 @@ func NewQuantizedHNSW(config QuantizedHNSWConfig) (*QuantizedHNSW, error) {
 	// Create quantizer with optimized configuration for testing
 	var quantizer quantization.Quantizer
 	var err error
-	
+
 	if config.QuantizerConfig.Type == quantization.ProductQuantization {
 		// Create PQ with test-friendly configuration
 		pqConfig := quantization.DefaultProductQuantizerConfig(config.QuantizerConfig.Dimension)
@@ -88,15 +88,15 @@ func NewQuantizedHNSW(config QuantizedHNSWConfig) (*QuantizedHNSW, error) {
 		factory := quantization.NewQuantizerFactory()
 		quantizer, err = factory.CreateQuantizer(config.QuantizerConfig)
 	}
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create quantizer: %w", err)
 	}
 
 	qhnsw := &QuantizedHNSW{
-		HNSWIndex:     hnsw,
-		quantizer:     quantizer,
-		quantizedDB:   make(map[string][]byte),
+		HNSWIndex:      hnsw,
+		quantizer:      quantizer,
+		quantizedDB:    make(map[string][]byte),
 		rerankerConfig: config.RerankerConfig,
 	}
 
@@ -204,7 +204,6 @@ func (qh *QuantizedHNSW) Search(query []float32, k int, filter map[string]string
 	return candidates, nil
 }
 
-
 // rerank reranks candidates using original vectors for improved accuracy
 func (qh *QuantizedHNSW) rerank(query []float32, candidates []core.SearchResult, k int) ([]core.SearchResult, error) {
 	type candidate struct {
@@ -282,11 +281,11 @@ func (qh *QuantizedHNSW) cosineDistance(a, b []float32) float32 {
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]
 	}
-	
+
 	if normA == 0 || normB == 0 {
 		return 1.0
 	}
-	
+
 	cosine := dotProduct / (float32(qh.sqrt(float64(normA))) * float32(qh.sqrt(float64(normB))))
 	return 1.0 - cosine
 }
@@ -303,7 +302,7 @@ func (qh *QuantizedHNSW) sqrt(x float64) float64 {
 	if x == 0 {
 		return 0
 	}
-	
+
 	// Newton's method for square root
 	z := x
 	for i := 0; i < 10; i++ {
@@ -338,12 +337,12 @@ func (qh *QuantizedHNSW) GetStats() QuantizedIndexStats {
 	qh.mu.RUnlock()
 
 	return QuantizedIndexStats{
-		QuantizedVectors:     quantizedCount,
-		OriginalVectors:      originalCount,
-		MemoryReduction:      qh.quantizer.MemoryReduction(),
-		CodeSize:             qh.quantizer.CodeSize(),
-		QuantizerTrained:     qh.quantizer.IsTrained(),
-		RerankerEnabled:      qh.rerankerConfig.Enable,
+		QuantizedVectors: quantizedCount,
+		OriginalVectors:  originalCount,
+		MemoryReduction:  qh.quantizer.MemoryReduction(),
+		CodeSize:         qh.quantizer.CodeSize(),
+		QuantizerTrained: qh.quantizer.IsTrained(),
+		RerankerEnabled:  qh.rerankerConfig.Enable,
 	}
 }
 
@@ -410,11 +409,11 @@ func (qh *QuantizedHNSW) EstimateMemoryUsage() QuantizedMemoryUsage {
 	baseMemory := int64(quantizedCount * 64) // Rough estimate for graph structure
 
 	return QuantizedMemoryUsage{
-		BaseMemoryUsage:   baseMemory,
-		QuantizedVectors:  quantizedMemory,
-		OriginalVectors:   originalMemory,
-		TotalMemory:       baseMemory + quantizedMemory + originalMemory,
-		MemoryReduction:   qh.quantizer.MemoryReduction(),
+		BaseMemoryUsage:  baseMemory,
+		QuantizedVectors: quantizedMemory,
+		OriginalVectors:  originalMemory,
+		TotalMemory:      baseMemory + quantizedMemory + originalMemory,
+		MemoryReduction:  qh.quantizer.MemoryReduction(),
 	}
 }
 

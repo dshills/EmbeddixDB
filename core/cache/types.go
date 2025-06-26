@@ -22,11 +22,11 @@ type QueryCacheKey struct {
 // Hash generates a unique hash for the query cache key
 func (k QueryCacheKey) Hash() string {
 	h := sha256.New()
-	
+
 	// Write collection name
 	h.Write([]byte(k.Collection))
 	h.Write([]byte("|"))
-	
+
 	// Write query vector (first 8 values for efficiency)
 	vectorLen := len(k.QueryVector)
 	if vectorLen > 8 {
@@ -36,10 +36,10 @@ func (k QueryCacheKey) Hash() string {
 		h.Write([]byte(fmt.Sprintf("%.4f", k.QueryVector[i])))
 	}
 	h.Write([]byte(fmt.Sprintf("|len:%d|", len(k.QueryVector))))
-	
+
 	// Write TopK
 	h.Write([]byte(fmt.Sprintf("k:%d|", k.TopK)))
-	
+
 	// Write sorted filters
 	if len(k.Filters) > 0 {
 		var filterKeys []string
@@ -47,25 +47,25 @@ func (k QueryCacheKey) Hash() string {
 			filterKeys = append(filterKeys, key)
 		}
 		sort.Strings(filterKeys)
-		
+
 		for _, key := range filterKeys {
 			h.Write([]byte(fmt.Sprintf("%s:%s|", key, k.Filters[key])))
 		}
 	}
-	
+
 	// Write distance metric
 	h.Write([]byte(k.DistanceMetric))
 	h.Write([]byte("|"))
-	
+
 	// Write user ID for personalization
 	if k.UserID != "" {
 		h.Write([]byte("user:" + k.UserID))
 		h.Write([]byte("|"))
 	}
-	
+
 	// Write include vectors flag
 	h.Write([]byte(fmt.Sprintf("vec:%t", k.IncludeVectors)))
-	
+
 	return hex.EncodeToString(h.Sum(nil))
 }
 
@@ -152,14 +152,14 @@ type MemoryStats struct {
 type CacheEventType string
 
 const (
-	CacheEventHit       CacheEventType = "hit"
-	CacheEventMiss      CacheEventType = "miss"
-	CacheEventSet       CacheEventType = "set"
-	CacheEventEvict     CacheEventType = "evict"
-	CacheEventExpire    CacheEventType = "expire"
-	CacheEventClear     CacheEventType = "clear"
-	CacheEventPromote   CacheEventType = "promote"
-	CacheEventDemote    CacheEventType = "demote"
+	CacheEventHit     CacheEventType = "hit"
+	CacheEventMiss    CacheEventType = "miss"
+	CacheEventSet     CacheEventType = "set"
+	CacheEventEvict   CacheEventType = "evict"
+	CacheEventExpire  CacheEventType = "expire"
+	CacheEventClear   CacheEventType = "clear"
+	CacheEventPromote CacheEventType = "promote"
+	CacheEventDemote  CacheEventType = "demote"
 )
 
 // CacheEvent represents a cache event for monitoring

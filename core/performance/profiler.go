@@ -14,10 +14,10 @@ import (
 
 // Profiler manages performance profiling and monitoring
 type Profiler struct {
-	mu               sync.RWMutex
-	enabled          bool
-	profileDir       string
-	cpuProfile       *os.File
+	mu         sync.RWMutex
+	enabled    bool
+	profileDir string
+	cpuProfile *os.File
 
 	// Metrics collection
 	metrics         *Metrics

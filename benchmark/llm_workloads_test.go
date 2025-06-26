@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package benchmark
 
 import (
@@ -287,4 +290,3 @@ func BenchmarkIndexComparison(b *testing.B) {
 }
 
 // Utility functions for statistical analysis
-

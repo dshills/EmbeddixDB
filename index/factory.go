@@ -22,6 +22,12 @@ func (f *DefaultFactory) CreateIndex(indexType string, dimension int, distanceMe
 	case "hnsw":
 		config := DefaultHNSWConfig()
 		return NewHNSWIndex(dimension, distanceMetric, config), nil
+	case "hierarchical_hnsw":
+		config := DefaultHierarchicalConfig(dimension)
+		return NewHierarchicalHNSW(dimension, distanceMetric, config), nil
+	case "quantized_hnsw":
+		config := DefaultQuantizedHNSWConfig(dimension, distanceMetric)
+		return NewQuantizedHNSW(config)
 	default:
 		return nil, fmt.Errorf("unsupported index type: %s", indexType)
 	}

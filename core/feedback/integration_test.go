@@ -13,6 +13,9 @@ import (
 )
 
 func TestFeedbackSystemIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	ctx := context.Background()
 
 	// Create feedback manager with all components
@@ -408,6 +411,9 @@ func TestFeedbackSystemIntegration(t *testing.T) {
 }
 
 func TestConcurrentFeedbackOperations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping concurrent operations test in short mode")
+	}
 	ctx := context.Background()
 
 	// Create manager with in-memory storage for speed

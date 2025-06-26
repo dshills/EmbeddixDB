@@ -70,19 +70,19 @@ func WithSemanticGroup(group string) CacheOption {
 type Cache interface {
 	// Get retrieves a value from the cache
 	Get(ctx context.Context, key string) (interface{}, bool)
-	
+
 	// Set stores a value in the cache with optional configuration
 	Set(ctx context.Context, key string, value interface{}, options ...CacheOption) error
-	
+
 	// Delete removes a value from the cache
 	Delete(ctx context.Context, key string) error
-	
+
 	// Clear removes all values from the cache
 	Clear(ctx context.Context) error
-	
+
 	// Stats returns cache performance statistics
 	Stats() CacheStats
-	
+
 	// Size returns the current size of the cache
 	Size() int64
 }
@@ -91,44 +91,44 @@ type Cache interface {
 type EvictionPolicy interface {
 	// ShouldEvict determines if an item should be evicted
 	ShouldEvict(item CachedItem) bool
-	
+
 	// SelectVictim chooses which item to evict
 	SelectVictim(items []CachedItem) CachedItem
-	
+
 	// OnAccess updates access statistics for an item
 	OnAccess(key string)
-	
+
 	// OnEvict handles cleanup when an item is evicted
 	OnEvict(item CachedItem)
 }
 
 // CachedItem represents an item stored in cache
 type CachedItem struct {
-	Key          string
-	Value        interface{}
-	Size         int64
-	AccessCount  int64
-	LastAccess   time.Time
-	CreatedAt    time.Time
-	TTL          time.Duration
-	Priority     int
-	UserContext  string
-	ComputeCost  float64 // Cost to recompute this item
+	Key         string
+	Value       interface{}
+	Size        int64
+	AccessCount int64
+	LastAccess  time.Time
+	CreatedAt   time.Time
+	TTL         time.Duration
+	Priority    int
+	UserContext string
+	ComputeCost float64 // Cost to recompute this item
 }
 
 // MultiLevelCache manages multiple cache levels
 type MultiLevelCache interface {
 	Cache
-	
+
 	// GetLevel returns a specific cache level
 	GetLevel(level CacheLevel) Cache
-	
+
 	// SetEvictionPolicy sets the eviction policy for a cache level
 	SetEvictionPolicy(level CacheLevel, policy EvictionPolicy) error
-	
+
 	// Promote moves an item up in the cache hierarchy
 	Promote(ctx context.Context, key string, fromLevel, toLevel CacheLevel) error
-	
+
 	// Demote moves an item down in the cache hierarchy
 	Demote(ctx context.Context, key string, fromLevel, toLevel CacheLevel) error
 }
@@ -137,10 +137,10 @@ type MultiLevelCache interface {
 type Vector interface {
 	// Dimension returns the vector dimension
 	Dimension() int
-	
+
 	// Values returns the vector values
 	Values() []float32
-	
+
 	// Distance calculates distance to another vector
 	Distance(other Vector) float32
 }
@@ -159,16 +159,16 @@ type CachedResult struct {
 // SemanticCache provides semantic similarity-based caching
 type SemanticCache interface {
 	Cache
-	
+
 	// GetSimilar finds cached results similar to the query
 	GetSimilar(ctx context.Context, query Vector, threshold float64) ([]CachedResult, error)
-	
+
 	// AddWithEmbedding adds a result with its query embedding
 	AddWithEmbedding(ctx context.Context, key string, embedding Vector, result CachedResult) error
-	
+
 	// UpdateClusters updates the semantic clustering
 	UpdateClusters(ctx context.Context) error
-	
+
 	// GetClusterStats returns clustering statistics
 	GetClusterStats() ClusterStats
 }
@@ -187,19 +187,19 @@ type ClusterStats struct {
 type CacheManager interface {
 	// Get attempts to retrieve from all cache levels
 	Get(ctx context.Context, key string) (interface{}, CacheLevel, bool)
-	
+
 	// Set stores in the appropriate cache level
 	Set(ctx context.Context, key string, value interface{}, options ...CacheOption) error
-	
+
 	// WarmUp pre-loads frequently accessed items
 	WarmUp(ctx context.Context) error
-	
+
 	// Optimize redistributes items between cache levels
 	Optimize(ctx context.Context) error
-	
+
 	// GetStats returns statistics for all cache levels
 	GetStats() map[CacheLevel]CacheStats
-	
+
 	// SetMemoryBudget sets memory limits for each level
 	SetMemoryBudget(budgets map[CacheLevel]int64) error
 }

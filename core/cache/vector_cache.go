@@ -42,7 +42,7 @@ func NewComputeCostTracker() *ComputeCostTracker {
 func (ct *ComputeCostTracker) RecordCost(key string, cost float64) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
-	
+
 	// Exponential moving average
 	if oldCost, exists := ct.costs[key]; exists {
 		ct.costs[key] = 0.7*oldCost + 0.3*cost
@@ -55,7 +55,7 @@ func (ct *ComputeCostTracker) RecordCost(key string, cost float64) {
 func (ct *ComputeCostTracker) GetCost(key string) float64 {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	return ct.costs[key]
 }
 
@@ -68,10 +68,10 @@ type HotSet struct {
 
 // HotSetItem represents an item in the hot set
 type HotSetItem struct {
-	Key              string
-	AccessFrequency  float64
-	LastAccess       time.Time
-	ComputeCost      float64
+	Key             string
+	AccessFrequency float64
+	LastAccess      time.Time
+	ComputeCost     float64
 }
 
 // NewHotSet creates a new hot set
@@ -86,14 +86,14 @@ func NewHotSet(maxSize int) *HotSet {
 // Access records an access and updates frequency
 func (hs *HotSet) Access(key string, computeCost float64) {
 	now := time.Now()
-	
+
 	// Decay all frequencies based on time
 	for _, item := range hs.items {
 		timeDiff := now.Sub(item.LastAccess).Seconds()
 		decayFactor := math.Pow(hs.accessDecay, timeDiff/3600) // Decay per hour
 		item.AccessFrequency *= decayFactor
 	}
-	
+
 	// Update or add the accessed item
 	if item, exists := hs.items[key]; exists {
 		item.AccessFrequency += 1.0
@@ -112,7 +112,7 @@ func (hs *HotSet) Access(key string, computeCost float64) {
 			// Find coldest item
 			var coldestKey string
 			coldestScore := math.MaxFloat64
-			
+
 			for k, item := range hs.items {
 				score := item.AccessFrequency / (1 + item.ComputeCost)
 				if score < coldestScore {
@@ -120,7 +120,7 @@ func (hs *HotSet) Access(key string, computeCost float64) {
 					coldestKey = k
 				}
 			}
-			
+
 			// Replace if new item has higher potential value
 			newScore := 1.0 / (1 + computeCost)
 			if newScore > coldestScore {
@@ -149,7 +149,7 @@ func (hs *HotSet) GetTopItems(n int) []string {
 	for _, item := range hs.items {
 		items = append(items, item)
 	}
-	
+
 	// Sort by access frequency
 	// In production, use a more efficient selection algorithm
 	for i := 0; i < len(items)-1; i++ {
@@ -159,24 +159,24 @@ func (hs *HotSet) GetTopItems(n int) []string {
 			}
 		}
 	}
-	
+
 	// Return top N
 	result := make([]string, 0, n)
 	for i := 0; i < n && i < len(items); i++ {
 		result = append(result, items[i].Key)
 	}
-	
+
 	return result
 }
 
 // NewVectorCache creates a new vector cache
 func NewVectorCache(capacity, maxMemory int64, config CacheConfig, userHotSetSize int) *VectorCache {
 	baseCache := NewBaseCache(capacity, maxMemory, config.CleanupInterval)
-	
+
 	// Set up cost-aware eviction policy
 	evictionPolicy := NewCostAwareEvictionPolicy()
 	baseCache.SetEvictionPolicy(evictionPolicy)
-	
+
 	return &VectorCache{
 		BaseCache:      baseCache,
 		costTracker:    NewComputeCostTracker(),
@@ -188,48 +188,48 @@ func NewVectorCache(capacity, maxMemory int64, config CacheConfig, userHotSetSiz
 // GetVector retrieves a cached vector
 func (vc *VectorCache) GetVector(ctx context.Context, key VectorCacheKey, userID string) (*CachedVector, bool) {
 	hash := key.Hash()
-	
+
 	// Record user access for hot set tracking
 	if userID != "" {
 		vc.recordUserAccess(userID, hash)
 	}
-	
+
 	value, found := vc.Get(ctx, hash)
 	if !found {
 		return nil, false
 	}
-	
+
 	vector, ok := value.(*CachedVector)
 	if !ok {
 		return nil, false
 	}
-	
+
 	return vector, true
 }
 
 // SetVector stores a vector in cache
 func (vc *VectorCache) SetVector(ctx context.Context, key VectorCacheKey, vector *CachedVector, computeCost float64, userID string) error {
 	hash := key.Hash()
-	
+
 	// Record compute cost
 	vc.costTracker.RecordCost(hash, computeCost)
-	
+
 	// Update user hot set
 	if userID != "" {
 		vc.recordUserAccess(userID, hash)
 	}
-	
+
 	// Calculate priority based on compute cost
 	priority := int(computeCost / 10) // Simple priority calculation
-	
+
 	options := []CacheOption{
 		WithPriority(priority),
 	}
-	
+
 	if userID != "" {
 		options = append(options, WithUserContext(userID))
 	}
-	
+
 	return vc.Set(ctx, hash, vector, options...)
 }
 
@@ -237,13 +237,13 @@ func (vc *VectorCache) SetVector(ctx context.Context, key VectorCacheKey, vector
 func (vc *VectorCache) recordUserAccess(userID, key string) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
-	
+
 	hotSet, exists := vc.userHotSets[userID]
 	if !exists {
 		hotSet = NewHotSet(vc.userHotSetSize)
 		vc.userHotSets[userID] = hotSet
 	}
-	
+
 	computeCost := vc.costTracker.GetCost(key)
 	hotSet.Access(key, computeCost)
 }
@@ -252,12 +252,12 @@ func (vc *VectorCache) recordUserAccess(userID, key string) {
 func (vc *VectorCache) GetUserHotVectors(userID string, count int) []string {
 	vc.mu.RLock()
 	defer vc.mu.RUnlock()
-	
+
 	hotSet, exists := vc.userHotSets[userID]
 	if !exists {
 		return nil
 	}
-	
+
 	return hotSet.GetTopItems(count)
 }
 
@@ -267,13 +267,13 @@ func (vc *VectorCache) PreloadUserHotSet(ctx context.Context, userID string, loa
 	if len(hotKeys) == 0 {
 		return nil
 	}
-	
+
 	// Load vectors
 	vectors, err := loader(hotKeys)
 	if err != nil {
 		return fmt.Errorf("failed to load hot vectors: %w", err)
 	}
-	
+
 	// Cache the loaded vectors
 	for key, vector := range vectors {
 		// Parse the key back to VectorCacheKey
@@ -282,19 +282,19 @@ func (vc *VectorCache) PreloadUserHotSet(ctx context.Context, userID string, loa
 			Collection: vector.Collection,
 			VectorID:   vector.ID,
 		}
-		
+
 		// Use average compute cost for preloaded items
 		avgCost := vc.costTracker.GetCost(key)
 		if avgCost == 0 {
 			avgCost = 10.0 // Default cost
 		}
-		
+
 		if err := vc.SetVector(ctx, cacheKey, vector, avgCost, userID); err != nil {
 			// Log error but continue with other vectors
 			continue
 		}
 	}
-	
+
 	return nil
 }
 
@@ -320,22 +320,22 @@ func (p *CostAwareEvictionPolicy) SelectVictim(items []CachedItem) CachedItem {
 	if len(items) == 0 {
 		return CachedItem{}
 	}
-	
+
 	// Find item with lowest value score
 	lowestScore := math.MaxFloat64
 	victimIndex := 0
-	
+
 	for i, item := range items {
 		// Calculate value score: access frequency / (age * compute cost)
 		age := time.Since(item.CreatedAt).Seconds()
 		score := float64(item.AccessCount) / (age * (1 + item.ComputeCost))
-		
+
 		if score < lowestScore {
 			lowestScore = score
 			victimIndex = i
 		}
 	}
-	
+
 	return items[victimIndex]
 }
 

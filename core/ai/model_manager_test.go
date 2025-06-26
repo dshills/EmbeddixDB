@@ -7,6 +7,9 @@ import (
 )
 
 func TestModelManager_LoadModel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping model loading test in short mode")
+	}
 	manager := NewModelManager(2)
 	defer manager.Close()
 

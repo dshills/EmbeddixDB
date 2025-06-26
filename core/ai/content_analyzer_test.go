@@ -445,6 +445,9 @@ func TestSentenceAndSyllableCounting(t *testing.T) {
 }
 
 func TestConcurrentAnalysis(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping concurrent analysis test in short mode")
+	}
 	analyzer := NewDefaultContentAnalyzer()
 	ctx := context.Background()
 

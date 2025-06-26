@@ -19,8 +19,8 @@ type SearchResult struct {
 // QueryResultCache implements L1 caching for query results
 type QueryResultCache struct {
 	*BaseCache
-	semanticCache  SemanticCache
-	ttlCalculator  TTLCalculator
+	semanticCache   SemanticCache
+	ttlCalculator   TTLCalculator
 	personalization bool
 }
 
@@ -40,24 +40,24 @@ func (d *DefaultTTLCalculator) CalculateTTL(collection string, updateFrequency t
 	if updateFrequency == 0 {
 		return d.MaxTTL
 	}
-	
+
 	// TTL should be shorter than update frequency
 	ttl := updateFrequency / 2
-	
+
 	if ttl < d.MinTTL {
 		return d.MinTTL
 	}
 	if ttl > d.MaxTTL {
 		return d.MaxTTL
 	}
-	
+
 	return ttl
 }
 
 // NewQueryResultCache creates a new query result cache
 func NewQueryResultCache(capacity, maxMemory int64, config CacheConfig) *QueryResultCache {
 	baseCache := NewBaseCache(capacity, maxMemory, config.CleanupInterval)
-	
+
 	return &QueryResultCache{
 		BaseCache: baseCache,
 		ttlCalculator: &DefaultTTLCalculator{
@@ -71,30 +71,30 @@ func NewQueryResultCache(capacity, maxMemory int64, config CacheConfig) *QueryRe
 // GetQueryResult retrieves cached query results
 func (qc *QueryResultCache) GetQueryResult(ctx context.Context, key QueryCacheKey) ([]SearchResult, bool) {
 	hash := key.Hash()
-	
+
 	value, found := qc.Get(ctx, hash)
 	if !found {
 		return nil, false
 	}
-	
+
 	// Type assertion with safety check
 	cachedResult, ok := value.(*CachedQueryResult)
 	if !ok {
 		return nil, false
 	}
-	
+
 	// Check if personalization context matches
 	if qc.personalization && cachedResult.UserContext != key.UserID {
 		return nil, false
 	}
-	
+
 	return cachedResult.Results, true
 }
 
 // SetQueryResult stores query results in cache
 func (qc *QueryResultCache) SetQueryResult(ctx context.Context, key QueryCacheKey, results []SearchResult, ttl time.Duration) error {
 	hash := key.Hash()
-	
+
 	cachedResult := &CachedQueryResult{
 		QueryKey:    key,
 		Results:     results,
@@ -102,12 +102,12 @@ func (qc *QueryResultCache) SetQueryResult(ctx context.Context, key QueryCacheKe
 		UserContext: key.UserID,
 		Confidence:  1.0, // Full confidence for exact matches
 	}
-	
+
 	options := []CacheOption{
 		WithTTL(ttl),
 		WithUserContext(key.UserID),
 	}
-	
+
 	return qc.Set(ctx, hash, cachedResult, options...)
 }
 
@@ -116,16 +116,16 @@ func (qc *QueryResultCache) GetSemanticallySimilar(ctx context.Context, queryVec
 	if qc.semanticCache == nil {
 		return nil, fmt.Errorf("semantic cache not configured")
 	}
-	
+
 	// Convert to Vector interface
 	vec := &SimpleVector{values: queryVector}
-	
+
 	// Find similar cached queries
 	cachedResults, err := qc.semanticCache.GetSimilar(ctx, vec, threshold)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Filter by user context if personalization is enabled
 	if qc.personalization && userID != "" {
 		filtered := make([]CachedResult, 0, len(cachedResults))
@@ -136,7 +136,7 @@ func (qc *QueryResultCache) GetSemanticallySimilar(ctx context.Context, queryVec
 		}
 		cachedResults = filtered
 	}
-	
+
 	// Convert to QueryResult type
 	queryResults := make([]CachedQueryResult, 0, len(cachedResults))
 	for _, result := range cachedResults {
@@ -144,7 +144,7 @@ func (qc *QueryResultCache) GetSemanticallySimilar(ctx context.Context, queryVec
 			queryResults = append(queryResults, *qr)
 		}
 	}
-	
+
 	return queryResults, nil
 }
 
@@ -162,20 +162,20 @@ func (qc *QueryResultCache) EnablePersonalization(enabled bool) {
 func (qc *QueryResultCache) InvalidateUser(ctx context.Context, userID string) error {
 	qc.mu.Lock()
 	defer qc.mu.Unlock()
-	
+
 	var toRemove []*list.Element
-	
+
 	for elem := qc.lruList.Front(); elem != nil; elem = elem.Next() {
 		entry := elem.Value.(*CacheEntry)
 		if entry.UserContext == userID {
 			toRemove = append(toRemove, elem)
 		}
 	}
-	
+
 	for _, elem := range toRemove {
 		qc.removeLocked(elem)
 	}
-	
+
 	return nil
 }
 
@@ -183,9 +183,9 @@ func (qc *QueryResultCache) InvalidateUser(ctx context.Context, userID string) e
 func (qc *QueryResultCache) InvalidateCollection(ctx context.Context, collection string) error {
 	qc.mu.Lock()
 	defer qc.mu.Unlock()
-	
+
 	var toRemove []*list.Element
-	
+
 	for elem := qc.lruList.Front(); elem != nil; elem = elem.Next() {
 		entry := elem.Value.(*CacheEntry)
 		if cachedResult, ok := entry.Value.(*CachedQueryResult); ok {
@@ -194,11 +194,11 @@ func (qc *QueryResultCache) InvalidateCollection(ctx context.Context, collection
 			}
 		}
 	}
-	
+
 	for _, elem := range toRemove {
 		qc.removeLocked(elem)
 	}
-	
+
 	return nil
 }
 
@@ -232,25 +232,25 @@ func (v *SimpleVector) Distance(other Vector) float32 {
 	if len(v.values) != len(otherValues) {
 		return -1
 	}
-	
+
 	var sum float32
 	for i := range v.values {
 		diff := v.values[i] - otherValues[i]
 		sum += diff * diff
 	}
-	
+
 	return sum // Return squared distance for efficiency
 }
 
 // MarshalJSON implements json.Marshaler
 func (r *CachedQueryResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		QueryKey    QueryCacheKey       `json:"query_key"`
+		QueryKey    QueryCacheKey  `json:"query_key"`
 		Results     []SearchResult `json:"results"`
-		Timestamp   time.Time           `json:"timestamp"`
-		AccessCount int64               `json:"access_count"`
-		UserContext string              `json:"user_context"`
-		Confidence  float64             `json:"confidence"`
+		Timestamp   time.Time      `json:"timestamp"`
+		AccessCount int64          `json:"access_count"`
+		UserContext string         `json:"user_context"`
+		Confidence  float64        `json:"confidence"`
 	}{
 		QueryKey:    r.QueryKey,
 		Results:     r.Results,

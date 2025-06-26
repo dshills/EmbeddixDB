@@ -440,10 +440,10 @@ func BenchmarkSemanticCache(b *testing.B) {
 
 		vec := &SimpleVector{values: embedding}
 		result := CachedResult{
-			QueryHash:   key,
-			Results:     []interface{}{[]SearchResult{{ID: fmt.Sprintf("doc%d", i), Score: 0.9}}},
-			Timestamp:   time.Now(),
-			Confidence:  1.0,
+			QueryHash:  key,
+			Results:    []interface{}{[]SearchResult{{ID: fmt.Sprintf("doc%d", i), Score: 0.9}}},
+			Timestamp:  time.Now(),
+			Confidence: 1.0,
 		}
 		cache.AddWithEmbedding(ctx, key, vec, result)
 	}

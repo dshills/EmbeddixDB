@@ -70,4 +70,3 @@ func (f *DefaultFactory) createBadgerPersistence(config PersistenceConfig) (core
 	// In the future, this could apply BadgerConfig options
 	return NewBadgerPersistence(config.Path)
 }
-

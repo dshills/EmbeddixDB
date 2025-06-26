@@ -130,8 +130,8 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetByID is a generic handler for retrieving resources by ID
-func (s *Server) handleGetByID(w http.ResponseWriter, r *http.Request, 
-	paramName string, 
+func (s *Server) handleGetByID(w http.ResponseWriter, r *http.Request,
+	paramName string,
 	serviceName string,
 	serviceAvailable func() bool,
 	getFunc func(context.Context, string) (interface{}, error)) {

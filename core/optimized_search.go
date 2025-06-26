@@ -142,7 +142,7 @@ func (ovs *OptimizedVectorStore) OptimizedSearch(ctx context.Context, collection
 			UserID:         req.UserID,
 			IncludeVectors: req.IncludeVectors,
 		}
-		
+
 		// Try to get from cache with semantic matching
 		if cachedResults, found := ovs.cacheManager.GetQueryResult(ctx, cacheKey, 0.85); found {
 			// Convert cache.SearchResult to core.SearchResult
@@ -255,8 +255,8 @@ func (ovs *OptimizedVectorStore) OptimizedSearch(ctx context.Context, collection
 				}
 			}
 		}
-		
-		ttl := 5 * time.Minute // Default TTL
+
+		ttl := 5 * time.Minute                                                                // Default TTL
 		go ovs.cacheManager.SetQueryResult(context.Background(), cacheKey, cacheResults, ttl) // Async cache update
 	}
 

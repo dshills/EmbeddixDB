@@ -1,5 +1,7 @@
 # EmbeddixDB
 
+This is pre-alpha software and should be treated as such.
+
 A high-performance vector database with integrated AI capabilities, designed for LLM memory storage and intelligent document processing. Written in Go, EmbeddixDB provides efficient similarity search, persistent storage, auto-embedding, and advanced content analysis.
 
 ## Features

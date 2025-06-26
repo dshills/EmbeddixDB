@@ -53,23 +53,23 @@ func TestGetDefaultConfigForArchitecture(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(string(tc.architecture), func(t *testing.T) {
 			config := GetDefaultConfigForArchitecture(tc.architecture)
-			
+
 			if config.MaxTokens != tc.expectedMaxTokens {
 				t.Errorf("Expected MaxTokens %d, got %d", tc.expectedMaxTokens, config.MaxTokens)
 			}
-			
+
 			if config.PoolingStrategy != tc.expectedPooling {
 				t.Errorf("Expected PoolingStrategy %s, got %s", tc.expectedPooling, config.PoolingStrategy)
 			}
-			
+
 			if config.NormalizeEmbeddings != tc.expectedNormalize {
 				t.Errorf("Expected NormalizeEmbeddings %v, got %v", tc.expectedNormalize, config.NormalizeEmbeddings)
 			}
-			
+
 			if config.Name == "" {
 				t.Error("Expected non-empty model name")
 			}
-			
+
 			if config.BatchSize <= 0 {
 				t.Error("Expected positive batch size")
 			}
@@ -151,7 +151,7 @@ func TestValidateModelFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			modelPath := tc.setupFunc()
 			err := ValidateModelFile(modelPath)
-			
+
 			if tc.expectError && err == nil {
 				t.Error("Expected error but got none")
 			} else if !tc.expectError && err != nil {
@@ -168,32 +168,32 @@ func TestGetRecommendedBatchSize(t *testing.T) {
 		minExpected  int
 		maxExpected  int
 	}{
-		{ArchitectureBERT, 1024, 1, 4},       // Low memory, memory-intensive model
-		{ArchitectureBERT, 8192, 6, 12},      // Normal memory
-		{ArchitectureBERT, 32768, 12, 24},    // High memory
-		{ArchitectureDistilBERT, 1024, 4, 12}, // Low memory, efficient model
+		{ArchitectureBERT, 1024, 1, 4},         // Low memory, memory-intensive model
+		{ArchitectureBERT, 8192, 6, 12},        // Normal memory
+		{ArchitectureBERT, 32768, 12, 24},      // High memory
+		{ArchitectureDistilBERT, 1024, 4, 12},  // Low memory, efficient model
 		{ArchitectureDistilBERT, 8192, 24, 40}, // Normal memory
-		{ArchitectureAllMiniLM, 1024, 4, 12},  // Low memory, efficient model
-		{ArchitectureAllMiniLM, 8192, 24, 40}, // Normal memory
-		{ArchitectureUnknown, 4096, 12, 20},   // Default case
+		{ArchitectureAllMiniLM, 1024, 4, 12},   // Low memory, efficient model
+		{ArchitectureAllMiniLM, 8192, 24, 40},  // Normal memory
+		{ArchitectureUnknown, 4096, 12, 20},    // Default case
 	}
 
 	for _, tc := range testCases {
 		t.Run(string(tc.architecture), func(t *testing.T) {
 			batchSize := GetRecommendedBatchSize(tc.architecture, tc.memoryMB)
-			
+
 			if batchSize < tc.minExpected {
 				t.Errorf("Batch size %d is below minimum expected %d", batchSize, tc.minExpected)
 			}
-			
+
 			if batchSize > tc.maxExpected {
 				t.Errorf("Batch size %d is above maximum expected %d", batchSize, tc.maxExpected)
 			}
-			
+
 			if batchSize <= 0 {
 				t.Error("Batch size should be positive")
 			}
-			
+
 			t.Logf("Architecture: %s, Memory: %dMB -> Batch size: %d", tc.architecture, tc.memoryMB, batchSize)
 		})
 	}
@@ -220,9 +220,9 @@ func TestEstimateModelMemoryUsage(t *testing.T) {
 		minMemory int64
 		maxMemory int64
 	}{
-		{1, 128, 1024*1024, 10*1024*1024},     // Small batch
-		{16, 512, 5*1024*1024, 50*1024*1024},  // Medium batch
-		{32, 512, 10*1024*1024, 100*1024*1024}, // Large batch
+		{1, 128, 1024 * 1024, 10 * 1024 * 1024},        // Small batch
+		{16, 512, 5 * 1024 * 1024, 50 * 1024 * 1024},   // Medium batch
+		{32, 512, 10 * 1024 * 1024, 100 * 1024 * 1024}, // Large batch
 	}
 
 	for _, tc := range testCases {
@@ -231,16 +231,16 @@ func TestEstimateModelMemoryUsage(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if memUsage < tc.minMemory {
 				t.Errorf("Memory usage %d is below minimum expected %d", memUsage, tc.minMemory)
 			}
-			
+
 			if memUsage > tc.maxMemory {
 				t.Errorf("Memory usage %d is above maximum expected %d", memUsage, tc.maxMemory)
 			}
-			
-			t.Logf("Batch: %d, Tokens: %d -> Memory: %d bytes (%.2f MB)", 
+
+			t.Logf("Batch: %d, Tokens: %d -> Memory: %d bytes (%.2f MB)",
 				tc.batchSize, tc.maxTokens, memUsage, float64(memUsage)/1024/1024)
 		})
 	}
@@ -277,7 +277,7 @@ func TestCreateConfigFromModel(t *testing.T) {
 			t.Errorf("Expected BERT architecture, got %s", arch)
 		}
 	})
-	
+
 	// Test with non-existent file
 	t.Run("non-existent file", func(t *testing.T) {
 		_, err := CreateConfigFromModel("/nonexistent/model.onnx")

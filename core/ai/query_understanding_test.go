@@ -18,12 +18,12 @@ func TestQueryUnderstanding_AnalyzeQuery(t *testing.T) {
 	ctx := context.Background()
 
 	testCases := []struct {
-		name            string
-		query           string
-		expectedIntent  string
-		expectedDomain  string
-		minEntities     int
-		expectedTokens  []string
+		name           string
+		query          string
+		expectedIntent string
+		expectedDomain string
+		minEntities    int
+		expectedTokens []string
 	}{
 		{
 			name:           "Simple question",
@@ -248,27 +248,27 @@ func TestEntityExtractor_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	testCases := []struct {
-		text         string
+		text          string
 		expectedTypes []string
 	}{
 		{
-			text:         "Contact john.doe@example.com or call (555) 123-4567",
+			text:          "Contact john.doe@example.com or call (555) 123-4567",
 			expectedTypes: []string{"EMAIL", "PHONE"},
 		},
 		{
-			text:         "The meeting is on January 15, 2024 at 3:30 PM",
+			text:          "The meeting is on January 15, 2024 at 3:30 PM",
 			expectedTypes: []string{"DATE"},
 		},
 		{
-			text:         "Visit our website at https://www.example.com",
+			text:          "Visit our website at https://www.example.com",
 			expectedTypes: []string{"URL"},
 		},
 		{
-			text:         "The project costs $150,000 USD",
+			text:          "The project costs $150,000 USD",
 			expectedTypes: []string{"MONEY"},
 		},
 		{
-			text:         "Microsoft Corporation announced a partnership with OpenAI",
+			text:          "Microsoft Corporation announced a partnership with OpenAI",
 			expectedTypes: []string{"ORG"},
 		},
 	}
@@ -298,9 +298,9 @@ func TestConceptExpander_ExpandConcepts(t *testing.T) {
 	ce := NewConceptExpander()
 
 	testCases := []struct {
-		tokens         []string
-		domain         string
-		expectedTerms  []string
+		tokens        []string
+		domain        string
+		expectedTerms []string
 	}{
 		{
 			tokens:        []string{"machine", "learning"},
@@ -328,7 +328,7 @@ func TestConceptExpander_ExpandConcepts(t *testing.T) {
 		t.Run(strings.Join(tc.tokens, " "), func(t *testing.T) {
 			intent := ExtendedQueryIntent{
 				QueryIntent: QueryIntent{Type: "lookup", Confidence: 0.8},
-				Domain: tc.domain,
+				Domain:      tc.domain,
 			}
 			expanded := ce.ExpandConcepts(tc.tokens, intent)
 
@@ -344,7 +344,7 @@ func TestConceptExpander_ExpandConcepts(t *testing.T) {
 			}
 
 			if foundCount == 0 {
-				t.Errorf("None of the expected terms %v were found in expanded terms %v", 
+				t.Errorf("None of the expected terms %v were found in expanded terms %v",
 					tc.expectedTerms, expanded)
 			}
 		})
@@ -400,7 +400,7 @@ func BenchmarkQueryUnderstanding_AnalyzeQuery(b *testing.B) {
 		engines: make(map[string]EmbeddingEngine),
 	}
 	mockManager.engines["all-MiniLM-L6-v2"] = &MockEmbeddingEngine{}
-	
+
 	qu := NewQueryUnderstanding(mockManager)
 	ctx := context.Background()
 

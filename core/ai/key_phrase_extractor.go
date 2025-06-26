@@ -11,21 +11,21 @@ import (
 
 // KeyPhraseExtractor extracts important phrases from text content
 type KeyPhraseExtractor struct {
-	stopWords     map[string]bool
-	minPhraseLen  int
-	maxPhraseLen  int
-	minWordLen    int
-	posPatterns   []*regexp.Regexp
+	stopWords    map[string]bool
+	minPhraseLen int
+	maxPhraseLen int
+	minWordLen   int
+	posPatterns  []*regexp.Regexp
 }
 
 // PhraseScore represents a scored key phrase
 type PhraseScore struct {
-	Phrase     string
-	Score      float64
-	Frequency  int
-	Words      []string
-	StartPos   int
-	EndPos     int
+	Phrase    string
+	Score     float64
+	Frequency int
+	Words     []string
+	StartPos  int
+	EndPos    int
 }
 
 // NewKeyPhraseExtractor creates a new key phrase extractor
@@ -51,16 +51,16 @@ func (kpe *KeyPhraseExtractor) ExtractKeyPhrases(ctx context.Context, content st
 
 	// Normalize and preprocess content
 	processedContent := kpe.preprocessText(content)
-	
+
 	// Extract candidate phrases
 	candidates := kpe.extractCandidatePhrases(processedContent)
-	
+
 	// Score phrases using TF-IDF-like approach
 	scoredPhrases := kpe.scorePhrases(candidates, processedContent)
-	
+
 	// Filter and rank phrases
 	topPhrases := kpe.selectTopPhrases(scoredPhrases, 10)
-	
+
 	// Convert to string slice
 	phrases := make([]string, len(topPhrases))
 	for i, phrase := range topPhrases {
@@ -92,7 +92,7 @@ func (kpe *KeyPhraseExtractor) preprocessText(text string) string {
 // extractCandidatePhrases extracts potential key phrases
 func (kpe *KeyPhraseExtractor) extractCandidatePhrases(content string) []PhraseScore {
 	var candidates []PhraseScore
-	
+
 	// Split into sentences
 	sentences := kpe.splitIntoSentences(content)
 	globalOffset := 0
@@ -111,7 +111,7 @@ func (kpe *KeyPhraseExtractor) extractCandidatePhrases(content string) []PhraseS
 func (kpe *KeyPhraseExtractor) extractPhrasesFromSentence(sentence string, offset int) []PhraseScore {
 	var phrases []PhraseScore
 	words := strings.Fields(strings.ToLower(sentence))
-	
+
 	if len(words) == 0 {
 		return phrases
 	}
@@ -120,15 +120,15 @@ func (kpe *KeyPhraseExtractor) extractPhrasesFromSentence(sentence string, offse
 	for n := kpe.minPhraseLen; n <= kpe.maxPhraseLen && n <= len(words); n++ {
 		for i := 0; i <= len(words)-n; i++ {
 			phrase := words[i : i+n]
-			
+
 			// Filter out phrases with stop words or short words
 			if kpe.isValidPhrase(phrase) {
 				phraseText := strings.Join(phrase, " ")
-				
+
 				// Calculate approximate position in original text
 				startPos := offset + kpe.estimateWordPosition(sentence, i)
 				endPos := startPos + len(phraseText)
-				
+
 				phrases = append(phrases, PhraseScore{
 					Phrase:    phraseText,
 					Words:     phrase,
@@ -190,7 +190,7 @@ func (kpe *KeyPhraseExtractor) scorePhrases(candidates []PhraseScore, content st
 	// Count phrase frequencies
 	phraseFreq := make(map[string]int)
 	phrasePositions := make(map[string][]int)
-	
+
 	for _, candidate := range candidates {
 		phraseFreq[candidate.Phrase]++
 		phrasePositions[candidate.Phrase] = append(phrasePositions[candidate.Phrase], candidate.StartPos)
@@ -214,7 +214,7 @@ func (kpe *KeyPhraseExtractor) scorePhrases(candidates []PhraseScore, content st
 		processed[candidate.Phrase] = true
 
 		score := kpe.calculatePhraseScore(candidate.Phrase, phraseFreq, wordFreq, phrasePositions, len(words))
-		
+
 		scoredPhrases = append(scoredPhrases, PhraseScore{
 			Phrase:    candidate.Phrase,
 			Score:     score,
@@ -230,10 +230,10 @@ func (kpe *KeyPhraseExtractor) scorePhrases(candidates []PhraseScore, content st
 // calculatePhraseScore computes the score for a phrase
 func (kpe *KeyPhraseExtractor) calculatePhraseScore(phrase string, phraseFreq map[string]int, wordFreq map[string]int, phrasePositions map[string][]int, totalWords int) float64 {
 	words := strings.Fields(phrase)
-	
+
 	// Term Frequency component
 	tf := float64(phraseFreq[phrase])
-	
+
 	// Inverse Document Frequency component (simplified)
 	// Higher score for less common words
 	idf := 0.0
@@ -289,22 +289,22 @@ func (kpe *KeyPhraseExtractor) selectTopPhrases(scoredPhrases []PhraseScore, max
 // removeOverlappingPhrases removes phrases that significantly overlap
 func (kpe *KeyPhraseExtractor) removeOverlappingPhrases(phrases []PhraseScore) []PhraseScore {
 	var result []PhraseScore
-	
+
 	for _, phrase := range phrases {
 		isOverlapping := false
-		
+
 		for _, existing := range result {
 			if kpe.phrasesOverlap(phrase.Phrase, existing.Phrase) {
 				isOverlapping = true
 				break
 			}
 		}
-		
+
 		if !isOverlapping {
 			result = append(result, phrase)
 		}
 	}
-	
+
 	return result
 }
 
@@ -312,30 +312,30 @@ func (kpe *KeyPhraseExtractor) removeOverlappingPhrases(phrases []PhraseScore) [
 func (kpe *KeyPhraseExtractor) phrasesOverlap(phrase1, phrase2 string) bool {
 	words1 := strings.Fields(phrase1)
 	words2 := strings.Fields(phrase2)
-	
+
 	if len(words1) == 0 || len(words2) == 0 {
 		return false
 	}
-	
+
 	// Count common words
 	wordSet1 := make(map[string]bool)
 	for _, word := range words1 {
 		wordSet1[word] = true
 	}
-	
+
 	commonWords := 0
 	for _, word := range words2 {
 		if wordSet1[word] {
 			commonWords++
 		}
 	}
-	
+
 	// Consider overlapping if more than 50% of words are common
 	minLen := len(words1)
 	if len(words2) < minLen {
 		minLen = len(words2)
 	}
-	
+
 	overlap := float64(commonWords) / float64(minLen)
 	return overlap > 0.5
 }
@@ -345,7 +345,7 @@ func (kpe *KeyPhraseExtractor) splitIntoSentences(content string) []string {
 	// Simple sentence splitting
 	sentenceRegex := regexp.MustCompile(`[.!?]+\s+`)
 	sentences := sentenceRegex.Split(content, -1)
-	
+
 	var result []string
 	for _, sentence := range sentences {
 		trimmed := strings.TrimSpace(sentence)
@@ -353,11 +353,11 @@ func (kpe *KeyPhraseExtractor) splitIntoSentences(content string) []string {
 			result = append(result, trimmed)
 		}
 	}
-	
+
 	if len(result) == 0 {
 		return []string{content}
 	}
-	
+
 	return result
 }
 
@@ -367,7 +367,7 @@ func (kpe *KeyPhraseExtractor) estimateWordPosition(sentence string, wordIndex i
 	if wordIndex >= len(words) {
 		return len(sentence)
 	}
-	
+
 	// Simple estimation based on average word length
 	avgWordLen := len(sentence) / len(words)
 	return wordIndex * avgWordLen
@@ -500,8 +500,8 @@ func (kpe *KeyPhraseExtractor) initializePOSPatterns() {
 	// Simplified POS patterns for key phrase extraction
 	// In a real implementation, this would use proper POS tagging
 	patterns := []string{
-		`\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b`,           // Proper nouns
-		`\b[a-z]+(?:ing|ion|tion|sion|ness|ment)\b`,    // Gerunds, nouns with suffixes
+		`\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b`,               // Proper nouns
+		`\b[a-z]+(?:ing|ion|tion|sion|ness|ment)\b`,        // Gerunds, nouns with suffixes
 		`\b(?:new|important|significant|major)\s+[a-z]+\b`, // Adjective + noun
 	}
 
@@ -515,10 +515,10 @@ func (kpe *KeyPhraseExtractor) initializePOSPatterns() {
 // GetExtractionStats returns statistics about the extraction process
 func (kpe *KeyPhraseExtractor) GetExtractionStats() map[string]interface{} {
 	return map[string]interface{}{
-		"min_phrase_length": kpe.minPhraseLen,
-		"max_phrase_length": kpe.maxPhraseLen,
-		"min_word_length":   kpe.minWordLen,
-		"stop_words_count":  len(kpe.stopWords),
+		"min_phrase_length":  kpe.minPhraseLen,
+		"max_phrase_length":  kpe.maxPhraseLen,
+		"min_word_length":    kpe.minWordLen,
+		"stop_words_count":   len(kpe.stopWords),
 		"pos_patterns_count": len(kpe.posPatterns),
 	}
 }

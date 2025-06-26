@@ -61,7 +61,7 @@ func NewONNXEmbeddingEngine(modelPath string, config ai.ModelConfig) (*ONNXEmbed
 		if err := ValidateModelFile(modelPath); err != nil {
 			return nil, fmt.Errorf("model validation failed: %w", err)
 		}
-		
+
 		// Check model compatibility
 		if err := ValidateModelCompatibility(modelPath); err != nil {
 			return nil, fmt.Errorf("model compatibility check failed: %w", err)
@@ -123,7 +123,7 @@ func (e *ONNXEmbeddingEngine) createSession() (ONNXSession, error) {
 		}
 		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
 	}
-	
+
 	return session, nil
 }
 
@@ -337,7 +337,7 @@ func (e *ONNXEmbeddingEngine) createInputTensors(tokens [][]int64) ([]ONNXValue,
 // generateAttentionMasks creates attention masks for the tokenized input
 func (e *ONNXEmbeddingEngine) generateAttentionMasks(tokens [][]int64) [][]int64 {
 	masks := make([][]int64, len(tokens))
-	
+
 	for i, seq := range tokens {
 		mask := make([]int64, len(seq))
 		for j, token := range seq {
@@ -349,7 +349,7 @@ func (e *ONNXEmbeddingEngine) generateAttentionMasks(tokens [][]int64) [][]int64
 		}
 		masks[i] = mask
 	}
-	
+
 	return masks
 }
 
@@ -362,7 +362,7 @@ func (e *ONNXEmbeddingEngine) extractEmbeddings(output ONNXValue) ([][]float32, 
 		if poolingStrategy == "" {
 			poolingStrategy = "cls" // Default to CLS token pooling
 		}
-		
+
 		embeddings, err := ExtractEmbeddingsFromTensor(realTensor, poolingStrategy)
 		if err != nil {
 			return nil, err

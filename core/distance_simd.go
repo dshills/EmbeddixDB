@@ -113,17 +113,17 @@ func CosineDistanceSIMD(a, b []float32) (float32, error) {
 // AVX2 implementations (8 floats per vector)
 func cosineSimilarityAVX2(a, b []float32) (float32, error) {
 	n := len(a)
-	
+
 	// Process 8 elements at a time with AVX2
 	var dotProduct, normA, normB float32
-	
+
 	// Vectorized loop
 	i := 0
 	for i <= n-8 {
 		// Load 8 floats from each vector
 		aVec := (*[8]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[8]float32)(unsafe.Pointer(&b[i]))
-		
+
 		// Simulate SIMD operations (actual intrinsics would be used in production)
 		for j := 0; j < 8; j++ {
 			dotProduct += aVec[j] * bVec[j]
@@ -132,7 +132,7 @@ func cosineSimilarityAVX2(a, b []float32) (float32, error) {
 		}
 		i += 8
 	}
-	
+
 	// Handle remaining elements
 	for i < n {
 		dotProduct += a[i] * b[i]
@@ -140,59 +140,59 @@ func cosineSimilarityAVX2(a, b []float32) (float32, error) {
 		normB += b[i] * b[i]
 		i++
 	}
-	
+
 	if normA == 0 || normB == 0 {
 		return 0, nil
 	}
-	
+
 	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB)))), nil
 }
 
 func dotProductAVX2(a, b []float32) (float32, error) {
 	n := len(a)
 	var product float32
-	
+
 	i := 0
 	for i <= n-8 {
 		aVec := (*[8]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[8]float32)(unsafe.Pointer(&b[i]))
-		
+
 		for j := 0; j < 8; j++ {
 			product += aVec[j] * bVec[j]
 		}
 		i += 8
 	}
-	
+
 	for i < n {
 		product += a[i] * b[i]
 		i++
 	}
-	
+
 	return product, nil
 }
 
 func euclideanDistanceAVX2(a, b []float32) (float32, error) {
 	n := len(a)
 	var sum float32
-	
+
 	i := 0
 	for i <= n-8 {
 		aVec := (*[8]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[8]float32)(unsafe.Pointer(&b[i]))
-		
+
 		for j := 0; j < 8; j++ {
 			diff := aVec[j] - bVec[j]
 			sum += diff * diff
 		}
 		i += 8
 	}
-	
+
 	for i < n {
 		diff := a[i] - b[i]
 		sum += diff * diff
 		i++
 	}
-	
+
 	return float32(math.Sqrt(float64(sum))), nil
 }
 
@@ -200,12 +200,12 @@ func euclideanDistanceAVX2(a, b []float32) (float32, error) {
 func cosineSimilarityAVX512(a, b []float32) (float32, error) {
 	n := len(a)
 	var dotProduct, normA, normB float32
-	
+
 	i := 0
 	for i <= n-16 {
 		aVec := (*[16]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[16]float32)(unsafe.Pointer(&b[i]))
-		
+
 		for j := 0; j < 16; j++ {
 			dotProduct += aVec[j] * bVec[j]
 			normA += aVec[j] * aVec[j]
@@ -213,66 +213,66 @@ func cosineSimilarityAVX512(a, b []float32) (float32, error) {
 		}
 		i += 16
 	}
-	
+
 	for i < n {
 		dotProduct += a[i] * b[i]
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]
 		i++
 	}
-	
+
 	if normA == 0 || normB == 0 {
 		return 0, nil
 	}
-	
+
 	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB)))), nil
 }
 
 func dotProductAVX512(a, b []float32) (float32, error) {
 	n := len(a)
 	var product float32
-	
+
 	i := 0
 	for i <= n-16 {
 		aVec := (*[16]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[16]float32)(unsafe.Pointer(&b[i]))
-		
+
 		for j := 0; j < 16; j++ {
 			product += aVec[j] * bVec[j]
 		}
 		i += 16
 	}
-	
+
 	for i < n {
 		product += a[i] * b[i]
 		i++
 	}
-	
+
 	return product, nil
 }
 
 func euclideanDistanceAVX512(a, b []float32) (float32, error) {
 	n := len(a)
 	var sum float32
-	
+
 	i := 0
 	for i <= n-16 {
 		aVec := (*[16]float32)(unsafe.Pointer(&a[i]))
 		bVec := (*[16]float32)(unsafe.Pointer(&b[i]))
-		
+
 		for j := 0; j < 16; j++ {
 			diff := aVec[j] - bVec[j]
 			sum += diff * diff
 		}
 		i += 16
 	}
-	
+
 	for i < n {
 		diff := a[i] - b[i]
 		sum += diff * diff
 		i++
 	}
-	
+
 	return float32(math.Sqrt(float64(sum))), nil
 }
 

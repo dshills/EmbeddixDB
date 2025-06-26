@@ -294,7 +294,7 @@ func ExtractEmbeddingsFromTensor(output *RealONNXTensor, poolingStrategy string)
 
 	// Handle different output shapes
 	var batchSize, seqLen, hiddenSize int64
-	
+
 	switch len(shape) {
 	case 2:
 		// Shape: [batch_size, hidden_size] - already pooled
@@ -353,7 +353,7 @@ func ExtractEmbeddingsFromTensor(output *RealONNXTensor, poolingStrategy string)
 				// Initialize with first token values
 				start := i * seqLen * hiddenSize
 				copy(result[i], embeddings[start:start+hiddenSize])
-				
+
 				// Find max across sequence
 				for j := int64(1); j < seqLen; j++ {
 					tokenStart := i*seqLen*hiddenSize + j*hiddenSize

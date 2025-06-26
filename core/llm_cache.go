@@ -11,16 +11,16 @@ import (
 
 // CacheEntry represents a cached item with metadata
 type CacheEntry struct {
-	Key           string
-	Value         interface{}
-	AccessCount   int64
-	LastAccessed  time.Time
-	CreatedAt     time.Time
-	ExpiresAt     time.Time
-	Size          int64
-	AgentID       string
+	Key            string
+	Value          interface{}
+	AccessCount    int64
+	LastAccessed   time.Time
+	CreatedAt      time.Time
+	ExpiresAt      time.Time
+	Size           int64
+	AgentID        string
 	ConversationID string
-	Semantic      bool // Whether this is a semantic cache entry
+	Semantic       bool // Whether this is a semantic cache entry
 }
 
 // LLMCache provides context-aware caching for LLM workloads
@@ -29,22 +29,22 @@ type LLMCache struct {
 	semanticCache    map[string]*CacheEntry
 	semanticLRU      *list.List
 	semanticElements map[string]*list.Element
-	
+
 	// Temporal cache for recent vectors
 	temporalCache    map[string]*CacheEntry
 	temporalLRU      *list.List
 	temporalElements map[string]*list.Element
-	
+
 	// Agent-specific caches
 	agentCaches map[string]*AgentCache
-	
+
 	// Cache configuration
-	maxSemanticSize  int64
-	maxTemporalSize  int64
-	maxAgentCaches   int
-	temporalTTL      time.Duration
-	semanticTTL      time.Duration
-	
+	maxSemanticSize int64
+	maxTemporalSize int64
+	maxAgentCaches  int
+	temporalTTL     time.Duration
+	semanticTTL     time.Duration
+
 	// Statistics
 	stats cacheStatsInternal
 	mutex sync.RWMutex
@@ -63,15 +63,15 @@ type AgentCache struct {
 
 // CacheStats tracks cache performance metrics
 type CacheStats struct {
-	SemanticHits     int64
-	SemanticMisses   int64
-	TemporalHits     int64
-	TemporalMisses   int64
-	AgentHits        int64
-	AgentMisses      int64
-	Evictions        int64
-	TotalQueries     int64
-	AverageHitRatio  float64
+	SemanticHits    int64
+	SemanticMisses  int64
+	TemporalHits    int64
+	TemporalMisses  int64
+	AgentHits       int64
+	AgentMisses     int64
+	Evictions       int64
+	TotalQueries    int64
+	AverageHitRatio float64
 }
 
 // cacheStatsInternal contains the mutex for thread-safe access
@@ -113,10 +113,10 @@ func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
 		MaxSemanticSize: 100 * 1024 * 1024, // 100MB
 		MaxTemporalSize: 50 * 1024 * 1024,  // 50MB
-		MaxAgentCaches:  100,                // Support 100 concurrent agents
-		TemporalTTL:     15 * time.Minute,   // Recent vectors stay for 15 minutes
-		SemanticTTL:     2 * time.Hour,      // Semantic neighborhoods stay for 2 hours
-		AgentCacheSize:  10 * 1024 * 1024,   // 10MB per agent
+		MaxAgentCaches:  100,               // Support 100 concurrent agents
+		TemporalTTL:     15 * time.Minute,  // Recent vectors stay for 15 minutes
+		SemanticTTL:     2 * time.Hour,     // Semantic neighborhoods stay for 2 hours
+		AgentCacheSize:  10 * 1024 * 1024,  // 10MB per agent
 	}
 }
 
@@ -135,9 +135,9 @@ func (lc *LLMCache) CacheSearchResults(query []float32, results []SearchResult, 
 		ConversationID: conversationID,
 		Semantic:       false,
 	}
-	
+
 	lc.putTemporal(key, entry)
-	
+
 	// Also cache in agent-specific cache
 	if agentID != "" {
 		lc.putAgent(agentID, key, entry)
@@ -157,14 +157,14 @@ func (lc *LLMCache) CacheSemanticNeighborhood(centerVector []float32, neighbors 
 		Size:         lc.estimateResultsSize(neighbors),
 		Semantic:     true,
 	}
-	
+
 	lc.putSemantic(key, entry)
 }
 
 // GetSearchResults retrieves cached search results
 func (lc *LLMCache) GetSearchResults(query []float32, agentID string) ([]SearchResult, bool) {
 	key := lc.generateQueryKey(query)
-	
+
 	// Try agent cache first (most specific)
 	if agentID != "" {
 		if results, found := lc.getAgent(agentID, key); found {
@@ -172,19 +172,19 @@ func (lc *LLMCache) GetSearchResults(query []float32, agentID string) ([]SearchR
 			return results.([]SearchResult), true
 		}
 	}
-	
+
 	// Try temporal cache
 	if results, found := lc.getTemporal(key); found {
 		lc.recordHit("temporal")
 		return results.([]SearchResult), true
 	}
-	
+
 	// Try semantic cache (look for similar queries)
 	if results, found := lc.getSemanticSimilar(query); found {
 		lc.recordHit("semantic")
 		return results.([]SearchResult), true
 	}
-	
+
 	lc.recordMiss()
 	return nil, false
 }
@@ -192,12 +192,12 @@ func (lc *LLMCache) GetSearchResults(query []float32, agentID string) ([]SearchR
 // GetSemanticNeighborhood retrieves cached semantic neighborhood
 func (lc *LLMCache) GetSemanticNeighborhood(centerVector []float32, radius float32) ([]SearchResult, bool) {
 	key := lc.generateSemanticKey(centerVector, radius)
-	
+
 	if results, found := lc.getSemantic(key); found {
 		lc.recordHit("semantic")
 		return results.([]SearchResult), true
 	}
-	
+
 	lc.recordMiss()
 	return nil, false
 }
@@ -206,7 +206,7 @@ func (lc *LLMCache) GetSemanticNeighborhood(centerVector []float32, radius float
 func (lc *LLMCache) InvalidateAgent(agentID string) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	delete(lc.agentCaches, agentID)
 }
 
@@ -214,14 +214,14 @@ func (lc *LLMCache) InvalidateAgent(agentID string) {
 func (lc *LLMCache) InvalidateConversation(conversationID string) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	// Remove from temporal cache
 	for key, entry := range lc.temporalCache {
 		if entry.ConversationID == conversationID {
 			lc.removeFromTemporal(key)
 		}
 	}
-	
+
 	// Remove from agent caches
 	for _, agentCache := range lc.agentCaches {
 		agentCache.mutex.Lock()
@@ -237,10 +237,10 @@ func (lc *LLMCache) InvalidateConversation(conversationID string) {
 // Cleanup removes expired entries
 func (lc *LLMCache) Cleanup() {
 	now := time.Now()
-	
+
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	// Clean temporal cache
 	for key, entry := range lc.temporalCache {
 		if now.After(entry.ExpiresAt) {
@@ -248,7 +248,7 @@ func (lc *LLMCache) Cleanup() {
 			lc.stats.CacheStats.Evictions++
 		}
 	}
-	
+
 	// Clean semantic cache
 	for key, entry := range lc.semanticCache {
 		if now.After(entry.ExpiresAt) {
@@ -256,7 +256,7 @@ func (lc *LLMCache) Cleanup() {
 			lc.stats.CacheStats.Evictions++
 		}
 	}
-	
+
 	// Clean agent caches
 	for _, agentCache := range lc.agentCaches {
 		agentCache.cleanup(now)
@@ -267,7 +267,7 @@ func (lc *LLMCache) Cleanup() {
 func (lc *LLMCache) GetStats() CacheStats {
 	lc.stats.mutex.RLock()
 	defer lc.stats.mutex.RUnlock()
-	
+
 	stats := CacheStats{
 		SemanticHits:   lc.stats.CacheStats.SemanticHits,
 		SemanticMisses: lc.stats.CacheStats.SemanticMisses,
@@ -278,12 +278,12 @@ func (lc *LLMCache) GetStats() CacheStats {
 		Evictions:      lc.stats.CacheStats.Evictions,
 		TotalQueries:   lc.stats.CacheStats.TotalQueries,
 	}
-	
+
 	if stats.TotalQueries > 0 {
 		totalHits := stats.SemanticHits + stats.TemporalHits + stats.AgentHits
 		stats.AverageHitRatio = float64(totalHits) / float64(stats.TotalQueries)
 	}
-	
+
 	return stats
 }
 
@@ -315,18 +315,18 @@ func (lc *LLMCache) estimateResultsSize(results []SearchResult) int64 {
 func (lc *LLMCache) putTemporal(key string, entry *CacheEntry) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	// Remove existing entry if present
 	if elem, exists := lc.temporalElements[key]; exists {
 		lc.temporalLRU.Remove(elem)
 		delete(lc.temporalCache, key)
 	}
-	
+
 	// Add new entry
 	elem := lc.temporalLRU.PushFront(key)
 	lc.temporalElements[key] = elem
 	lc.temporalCache[key] = entry
-	
+
 	// Evict if necessary
 	lc.evictTemporalIfNeeded()
 }
@@ -334,55 +334,55 @@ func (lc *LLMCache) putTemporal(key string, entry *CacheEntry) {
 func (lc *LLMCache) getTemporal(key string) (interface{}, bool) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	entry, exists := lc.temporalCache[key]
 	if !exists || time.Now().After(entry.ExpiresAt) {
 		return nil, false
 	}
-	
+
 	// Move to front
 	if elem := lc.temporalElements[key]; elem != nil {
 		lc.temporalLRU.MoveToFront(elem)
 	}
-	
+
 	entry.AccessCount++
 	entry.LastAccessed = time.Now()
-	
+
 	return entry.Value, true
 }
 
 func (lc *LLMCache) putSemantic(key string, entry *CacheEntry) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	if elem, exists := lc.semanticElements[key]; exists {
 		lc.semanticLRU.Remove(elem)
 		delete(lc.semanticCache, key)
 	}
-	
+
 	elem := lc.semanticLRU.PushFront(key)
 	lc.semanticElements[key] = elem
 	lc.semanticCache[key] = entry
-	
+
 	lc.evictSemanticIfNeeded()
 }
 
 func (lc *LLMCache) getSemantic(key string) (interface{}, bool) {
 	lc.mutex.Lock()
 	defer lc.mutex.Unlock()
-	
+
 	entry, exists := lc.semanticCache[key]
 	if !exists || time.Now().After(entry.ExpiresAt) {
 		return nil, false
 	}
-	
+
 	if elem := lc.semanticElements[key]; elem != nil {
 		lc.semanticLRU.MoveToFront(elem)
 	}
-	
+
 	entry.AccessCount++
 	entry.LastAccessed = time.Now()
-	
+
 	return entry.Value, true
 }
 
@@ -390,10 +390,10 @@ func (lc *LLMCache) getSemanticSimilar(query []float32) (interface{}, bool) {
 	// This is a simplified implementation - in practice you'd use
 	// locality-sensitive hashing or approximate nearest neighbor search
 	// to find semantically similar cached queries
-	
+
 	lc.mutex.RLock()
 	defer lc.mutex.RUnlock()
-	
+
 	// For now, just return false - semantic similarity matching
 	// would require more sophisticated implementation
 	return nil, false
@@ -411,7 +411,7 @@ func (lc *LLMCache) putAgent(agentID, key string, entry *CacheEntry) {
 		lc.agentCaches[agentID] = agentCache
 	}
 	lc.mutex.Unlock()
-	
+
 	agentCache.Put(key, entry)
 }
 
@@ -419,11 +419,11 @@ func (lc *LLMCache) getAgent(agentID, key string) (interface{}, bool) {
 	lc.mutex.RLock()
 	agentCache, exists := lc.agentCaches[agentID]
 	lc.mutex.RUnlock()
-	
+
 	if !exists {
 		return nil, false
 	}
-	
+
 	return agentCache.Get(key)
 }
 
@@ -452,14 +452,14 @@ func (lc *LLMCache) evictOldestAgentCache() {
 	// Find and remove the oldest agent cache
 	var oldestAgent string
 	oldestTime := time.Now()
-	
+
 	for agentID, cache := range lc.agentCaches {
 		if cache.getOldestAccess().Before(oldestTime) {
 			oldestTime = cache.getOldestAccess()
 			oldestAgent = agentID
 		}
 	}
-	
+
 	if oldestAgent != "" {
 		delete(lc.agentCaches, oldestAgent)
 	}
@@ -484,7 +484,7 @@ func (lc *LLMCache) removeFromSemantic(key string) {
 func (lc *LLMCache) recordHit(cacheType string) {
 	lc.stats.mutex.Lock()
 	defer lc.stats.mutex.Unlock()
-	
+
 	switch cacheType {
 	case "semantic":
 		lc.stats.CacheStats.SemanticHits++
@@ -499,7 +499,7 @@ func (lc *LLMCache) recordHit(cacheType string) {
 func (lc *LLMCache) recordMiss() {
 	lc.stats.mutex.Lock()
 	defer lc.stats.mutex.Unlock()
-	
+
 	lc.stats.CacheStats.SemanticMisses++
 	lc.stats.CacheStats.TemporalMisses++
 	lc.stats.CacheStats.AgentMisses++
@@ -523,18 +523,18 @@ func NewAgentCache(agentID string, maxSize int64) *AgentCache {
 func (ac *AgentCache) Put(key string, entry *CacheEntry) {
 	ac.mutex.Lock()
 	defer ac.mutex.Unlock()
-	
+
 	if elem, exists := ac.elements[key]; exists {
 		ac.lru.Remove(elem)
 		ac.currentSize -= ac.cache[key].Size
 		delete(ac.cache, key)
 	}
-	
+
 	elem := ac.lru.PushFront(key)
 	ac.elements[key] = elem
 	ac.cache[key] = entry
 	ac.currentSize += entry.Size
-	
+
 	ac.evictIfNeeded()
 }
 
@@ -542,19 +542,19 @@ func (ac *AgentCache) Put(key string, entry *CacheEntry) {
 func (ac *AgentCache) Get(key string) (interface{}, bool) {
 	ac.mutex.Lock()
 	defer ac.mutex.Unlock()
-	
+
 	entry, exists := ac.cache[key]
 	if !exists || time.Now().After(entry.ExpiresAt) {
 		return nil, false
 	}
-	
+
 	if elem := ac.elements[key]; elem != nil {
 		ac.lru.MoveToFront(elem)
 	}
-	
+
 	entry.AccessCount++
 	entry.LastAccessed = time.Now()
-	
+
 	return entry.Value, true
 }
 
@@ -583,7 +583,7 @@ func (ac *AgentCache) evictIfNeeded() {
 func (ac *AgentCache) cleanup(now time.Time) {
 	ac.mutex.Lock()
 	defer ac.mutex.Unlock()
-	
+
 	for key, entry := range ac.cache {
 		if now.After(entry.ExpiresAt) {
 			ac.removeEntry(key)
@@ -594,7 +594,7 @@ func (ac *AgentCache) cleanup(now time.Time) {
 func (ac *AgentCache) getOldestAccess() time.Time {
 	ac.mutex.RLock()
 	defer ac.mutex.RUnlock()
-	
+
 	oldest := time.Now()
 	for _, entry := range ac.cache {
 		if entry.LastAccessed.Before(oldest) {

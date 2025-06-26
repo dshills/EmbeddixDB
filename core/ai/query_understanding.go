@@ -29,14 +29,14 @@ type QueryEntity struct {
 
 // ExpandedQuery represents an expanded version of the original query
 type ExpandedQuery struct {
-	Original        string                `json:"original"`
-	Normalized      string                `json:"normalized"`
-	Tokens          []string              `json:"tokens"`
-	Entities        []QueryEntity         `json:"entities"`
-	Intent          ExtendedQueryIntent   `json:"intent"`
-	RelatedTerms    []string              `json:"related_terms"`
-	Synonyms        map[string][]string   `json:"synonyms"`
-	ConceptualTerms []string              `json:"conceptual_terms"`
+	Original        string              `json:"original"`
+	Normalized      string              `json:"normalized"`
+	Tokens          []string            `json:"tokens"`
+	Entities        []QueryEntity       `json:"entities"`
+	Intent          ExtendedQueryIntent `json:"intent"`
+	RelatedTerms    []string            `json:"related_terms"`
+	Synonyms        map[string][]string `json:"synonyms"`
+	ConceptualTerms []string            `json:"conceptual_terms"`
 }
 
 // QueryUnderstanding provides semantic analysis of search queries
@@ -76,7 +76,7 @@ func (qu *QueryUnderstanding) AnalyzeQuery(ctx context.Context, query string) (*
 	if err != nil {
 		return nil, fmt.Errorf("entity extraction failed: %w", err)
 	}
-	
+
 	// Convert Entity to QueryEntity
 	entities := make([]QueryEntity, len(extractedEntities))
 	for i, e := range extractedEntities {
@@ -94,7 +94,7 @@ func (qu *QueryUnderstanding) AnalyzeQuery(ctx context.Context, query string) (*
 
 	// Expand query with related concepts
 	relatedTerms := qu.conceptExpander.ExpandConcepts(tokens, intent)
-	
+
 	// Get synonyms for key terms
 	synonyms := qu.getSynonyms(tokens)
 
@@ -178,21 +178,21 @@ func (qu *QueryUnderstanding) tokenizeQuery(query string) []string {
 // getSynonyms returns synonyms for query terms
 func (qu *QueryUnderstanding) getSynonyms(tokens []string) map[string][]string {
 	synonyms := make(map[string][]string)
-	
+
 	// Common synonym mappings
 	synonymMap := map[string][]string{
-		"find":     {"search", "locate", "discover", "retrieve"},
-		"create":   {"make", "build", "generate", "construct"},
-		"delete":   {"remove", "erase", "destroy", "eliminate"},
-		"update":   {"modify", "change", "edit", "revise"},
-		"show":     {"display", "present", "reveal", "exhibit"},
-		"get":      {"retrieve", "fetch", "obtain", "acquire"},
-		"best":     {"top", "optimal", "finest", "greatest"},
-		"fast":     {"quick", "rapid", "swift", "speedy"},
-		"new":      {"latest", "recent", "fresh", "novel"},
-		"help":     {"assist", "aid", "support", "guide"},
-		"error":    {"mistake", "fault", "bug", "issue"},
-		"problem":  {"issue", "trouble", "difficulty", "challenge"},
+		"find":    {"search", "locate", "discover", "retrieve"},
+		"create":  {"make", "build", "generate", "construct"},
+		"delete":  {"remove", "erase", "destroy", "eliminate"},
+		"update":  {"modify", "change", "edit", "revise"},
+		"show":    {"display", "present", "reveal", "exhibit"},
+		"get":     {"retrieve", "fetch", "obtain", "acquire"},
+		"best":    {"top", "optimal", "finest", "greatest"},
+		"fast":    {"quick", "rapid", "swift", "speedy"},
+		"new":     {"latest", "recent", "fresh", "novel"},
+		"help":    {"assist", "aid", "support", "guide"},
+		"error":   {"mistake", "fault", "bug", "issue"},
+		"problem": {"issue", "trouble", "difficulty", "challenge"},
 	}
 
 	for _, token := range tokens {
@@ -223,7 +223,7 @@ func (qu *QueryUnderstanding) getConceptualTerms(ctx context.Context, query stri
 
 	var concepts []string
 	lowerQuery := strings.ToLower(query)
-	
+
 	for key, values := range conceptMap {
 		if strings.Contains(lowerQuery, key) {
 			concepts = append(concepts, values...)
@@ -274,13 +274,13 @@ func (ic *IntentClassifier) Classify(query string, entities []QueryEntity) Exten
 		"navigation":    0.6,
 		"lookup":        0.4, // Lower weight for generic lookup patterns
 	}
-	
+
 	for intentType, patterns := range ic.patterns {
 		weight := patternWeights[intentType]
 		if weight == 0 {
 			weight = 0.5 // Default weight
 		}
-		
+
 		for _, pattern := range patterns {
 			if pattern.MatchString(lowerQuery) {
 				scores[intentType] += weight
@@ -332,7 +332,7 @@ func (ic *IntentClassifier) Classify(query string, entities []QueryEntity) Exten
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	return ExtendedQueryIntent{
 		QueryIntent: QueryIntent{
 			Type:       bestIntent,
@@ -391,7 +391,7 @@ func (ic *IntentClassifier) extractModifiers(query string) []string {
 func (ic *IntentClassifier) calculateUrgency(query string) float64 {
 	urgentWords := []string{"urgent", "asap", "immediately", "now", "quickly", "fast"}
 	lowerQuery := strings.ToLower(query)
-	
+
 	urgency := 0.0
 	for _, word := range urgentWords {
 		if strings.Contains(lowerQuery, word) {
@@ -410,7 +410,7 @@ func (ic *IntentClassifier) calculateUrgency(query string) float64 {
 func (ic *IntentClassifier) calculateSpecificity(query string, entities []QueryEntity) float64 {
 	// More entities and longer queries tend to be more specific
 	specificity := float64(len(entities)) * 0.1
-	
+
 	// Word count factor
 	words := strings.Fields(query)
 	specificity += float64(len(words)) * 0.05

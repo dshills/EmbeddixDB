@@ -7,26 +7,26 @@ import (
 
 func TestNewTopicModeler(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	if modeler == nil {
 		t.Fatal("Expected modeler to be created, got nil")
 	}
-	
+
 	if len(modeler.topicKeywords) == 0 {
 		t.Error("Expected topic keywords to be populated")
 	}
-	
+
 	if len(modeler.stopWords) == 0 {
 		t.Error("Expected stop words to be populated")
 	}
-	
+
 	// Check that expected topics are present
 	expectedTopics := []string{
 		"Technology", "Business", "Science", "Education", "Politics",
 		"Sports", "Entertainment", "Health", "Travel", "Food",
 		"Environment", "Finance",
 	}
-	
+
 	for _, topic := range expectedTopics {
 		if _, exists := modeler.topicKeywords[topic]; !exists {
 			t.Errorf("Expected topic '%s' to be configured", topic)
@@ -37,7 +37,7 @@ func TestNewTopicModeler(t *testing.T) {
 func TestExtractTopics(t *testing.T) {
 	modeler := NewTopicModeler()
 	ctx := context.Background()
-	
+
 	testCases := []struct {
 		name           string
 		content        string
@@ -100,57 +100,57 @@ func TestExtractTopics(t *testing.T) {
 			maxTopics: 2,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			topics, err := modeler.ExtractTopics(ctx, tc.content)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if len(topics) < tc.minTopics {
 				t.Errorf("Expected at least %d topics, got %d", tc.minTopics, len(topics))
 			}
-			
+
 			if len(topics) > tc.maxTopics {
 				t.Errorf("Expected at most %d topics, got %d", tc.maxTopics, len(topics))
 			}
-			
+
 			// Validate topic structure
 			for i, topic := range topics {
 				if topic.ID == "" {
 					t.Errorf("Topic %d has empty ID", i)
 				}
-				
+
 				if topic.Label == "" {
 					t.Errorf("Topic %d has empty label", i)
 				}
-				
+
 				if topic.Confidence < 0 {
 					t.Errorf("Topic %d confidence %f should be non-negative", i, topic.Confidence)
 				}
-				
+
 				if topic.Weight < 0 {
 					t.Errorf("Topic %d weight %f should be non-negative", i, topic.Weight)
 				}
-				
+
 				if len(topic.Keywords) == 0 {
 					t.Logf("Topic %d has no keywords (may be normal)", i)
 				}
 			}
-			
+
 			// Check if any expected topics were found
 			foundTopics := make(map[string]bool)
 			for _, topic := range topics {
 				foundTopics[topic.Label] = true
 			}
-			
+
 			for _, expectedTopic := range tc.expectedTopics {
 				if foundTopics[expectedTopic] {
 					t.Logf("Successfully detected expected topic: %s", expectedTopic)
 				}
 			}
-			
+
 			t.Logf("Extracted topics: %v", getTopicLabels(topics))
 		})
 	}
@@ -159,22 +159,22 @@ func TestExtractTopics(t *testing.T) {
 func TestGetTopicCategories(t *testing.T) {
 	modeler := NewTopicModeler()
 	categories := modeler.GetTopicCategories()
-	
+
 	if len(categories) == 0 {
 		t.Error("Expected topic categories to be returned")
 	}
-	
+
 	expectedCategories := []string{
 		"Technology", "Business", "Science", "Education", "Politics",
 		"Sports", "Entertainment", "Health", "Travel", "Food",
 		"Environment", "Finance",
 	}
-	
+
 	categoryMap := make(map[string]bool)
 	for _, cat := range categories {
 		categoryMap[cat] = true
 	}
-	
+
 	for _, expectedCat := range expectedCategories {
 		if !categoryMap[expectedCat] {
 			t.Errorf("Expected category '%s' not found", expectedCat)
@@ -184,7 +184,7 @@ func TestGetTopicCategories(t *testing.T) {
 
 func TestGetTopicKeywords(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	testCases := []struct {
 		topic           string
 		expectedPresent bool
@@ -197,17 +197,17 @@ func TestGetTopicKeywords(t *testing.T) {
 		{"NonExistentTopic", false, 0},
 		{"", false, 0},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.topic, func(t *testing.T) {
 			keywords := modeler.GetTopicKeywords(tc.topic)
-			
+
 			if tc.expectedPresent {
 				if len(keywords) < tc.minKeywords {
-					t.Errorf("Expected at least %d keywords for topic '%s', got %d", 
+					t.Errorf("Expected at least %d keywords for topic '%s', got %d",
 						tc.minKeywords, tc.topic, len(keywords))
 				}
-				
+
 				// Check that keywords are not empty
 				for i, keyword := range keywords {
 					if keyword == "" {
@@ -216,7 +216,7 @@ func TestGetTopicKeywords(t *testing.T) {
 				}
 			} else {
 				if len(keywords) != 0 {
-					t.Errorf("Expected no keywords for non-existent topic '%s', got %d", 
+					t.Errorf("Expected no keywords for non-existent topic '%s', got %d",
 						tc.topic, len(keywords))
 				}
 			}
@@ -226,13 +226,13 @@ func TestGetTopicKeywords(t *testing.T) {
 
 func TestTokenizeAndClean(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	testCases := []struct {
-		name           string
-		content        string
-		expectedWords  []string
-		minWords       int
-		maxWords       int
+		name          string
+		content       string
+		expectedWords []string
+		minWords      int
+		maxWords      int
 	}{
 		{
 			name:          "simple text",
@@ -272,42 +272,42 @@ func TestTokenizeAndClean(t *testing.T) {
 			maxWords: 0,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			words := modeler.tokenizeAndClean(tc.content)
-			
+
 			if len(words) < tc.minWords {
 				t.Errorf("Expected at least %d words, got %d", tc.minWords, len(words))
 			}
-			
+
 			if len(words) > tc.maxWords {
 				t.Errorf("Expected at most %d words, got %d", tc.maxWords, len(words))
 			}
-			
+
 			// Check that words meet criteria
 			for _, word := range words {
 				if len(word) < 3 {
 					t.Errorf("Word '%s' is too short (should be filtered)", word)
 				}
-				
+
 				if modeler.stopWords[word] {
 					t.Errorf("Word '%s' is a stop word (should be filtered)", word)
 				}
 			}
-			
+
 			// Check for expected words
 			wordMap := make(map[string]bool)
 			for _, word := range words {
 				wordMap[word] = true
 			}
-			
+
 			for _, expectedWord := range tc.expectedWords {
 				if wordMap[expectedWord] {
 					t.Logf("Found expected word: %s", expectedWord)
 				}
 			}
-			
+
 			t.Logf("Cleaned words: %v", words)
 		})
 	}
@@ -315,7 +315,7 @@ func TestTokenizeAndClean(t *testing.T) {
 
 func TestCalculateWordFrequencies(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	testCases := []struct {
 		name          string
 		words         []string
@@ -343,20 +343,20 @@ func TestCalculateWordFrequencies(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			freqs := modeler.calculateWordFrequencies(tc.words)
-			
+
 			if len(freqs) != len(tc.expectedFreqs) {
 				t.Errorf("Expected %d unique words, got %d", len(tc.expectedFreqs), len(freqs))
 			}
-			
+
 			for word, expectedFreq := range tc.expectedFreqs {
 				if actualFreq, exists := freqs[word]; !exists {
 					t.Errorf("Expected word '%s' not found", word)
 				} else if actualFreq != expectedFreq {
-					t.Errorf("Expected frequency %d for word '%s', got %d", 
+					t.Errorf("Expected frequency %d for word '%s', got %d",
 						expectedFreq, word, actualFreq)
 				}
 			}
@@ -366,7 +366,7 @@ func TestCalculateWordFrequencies(t *testing.T) {
 
 func TestCalculateTopicScores(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	// Test with technology-related words
 	wordFreq := map[string]int{
 		"technology": 2,
@@ -375,13 +375,13 @@ func TestCalculateTopicScores(t *testing.T) {
 		"algorithm":  1,
 		"digital":    1,
 	}
-	
+
 	scores := modeler.calculateTopicScores(wordFreq)
-	
+
 	if len(scores) == 0 {
 		t.Error("Expected topic scores to be calculated")
 	}
-	
+
 	// Technology should have a high score
 	techScore, exists := scores["Technology"]
 	if !exists {
@@ -392,13 +392,13 @@ func TestCalculateTopicScores(t *testing.T) {
 		}
 		t.Logf("Technology score: %f", techScore)
 	}
-	
+
 	// Check that scores are reasonable
 	for topic, score := range scores {
 		if score < 0 {
 			t.Errorf("Topic '%s' has negative score: %f", topic, score)
 		}
-		
+
 		if score > 1.0 {
 			t.Logf("Topic '%s' has high score: %f (may be normal)", topic, score)
 		}
@@ -407,7 +407,7 @@ func TestCalculateTopicScores(t *testing.T) {
 
 func TestGetRelevantKeywords(t *testing.T) {
 	modeler := NewTopicModeler()
-	
+
 	wordFreq := map[string]int{
 		"technology": 3,
 		"computer":   2,
@@ -415,29 +415,29 @@ func TestGetRelevantKeywords(t *testing.T) {
 		"algorithm":  1,
 		"digital":    1,
 	}
-	
+
 	keywords := modeler.getRelevantKeywords("Technology", wordFreq)
-	
+
 	if len(keywords) == 0 {
 		t.Error("Expected relevant keywords to be found")
 	}
-	
+
 	if len(keywords) > 5 {
 		t.Errorf("Expected at most 5 keywords, got %d", len(keywords))
 	}
-	
+
 	// Check that keywords are from the input
 	keywordMap := make(map[string]bool)
 	for word := range wordFreq {
 		keywordMap[word] = true
 	}
-	
+
 	for _, keyword := range keywords {
 		if !keywordMap[keyword] {
 			t.Errorf("Keyword '%s' not found in input word frequencies", keyword)
 		}
 	}
-	
+
 	// Keywords should be sorted by relevance (frequency * weight)
 	// Higher frequency words should generally appear first
 	t.Logf("Relevant keywords for Technology: %v", keywords)

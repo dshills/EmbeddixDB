@@ -21,18 +21,18 @@ func CosineSimilarity(a, b []float32) (float32, error) {
 	if len(a) != len(b) {
 		return 0, fmt.Errorf("vector dimensions must match: %d != %d", len(a), len(b))
 	}
-	
+
 	var dotProduct, normA, normB float32
 	for i := range a {
 		dotProduct += a[i] * b[i]
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]
 	}
-	
+
 	if normA == 0 || normB == 0 {
 		return 0, nil
 	}
-	
+
 	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB)))), nil
 }
 
@@ -44,17 +44,17 @@ func CosineDistance(a, b []float32) (float32, error) {
 		return 0, err
 	}
 	return 1 - similarity, nil
-}// DotProduct calculates dot product between two vectors
+} // DotProduct calculates dot product between two vectors
 func DotProduct(a, b []float32) (float32, error) {
 	if len(a) != len(b) {
 		return 0, fmt.Errorf("vector dimensions must match: %d != %d", len(a), len(b))
 	}
-	
+
 	var product float32
 	for i := range a {
 		product += a[i] * b[i]
 	}
-	
+
 	return product, nil
 }
 
@@ -64,13 +64,13 @@ func EuclideanDistance(a, b []float32) (float32, error) {
 	if len(a) != len(b) {
 		return 0, fmt.Errorf("vector dimensions must match: %d != %d", len(a), len(b))
 	}
-	
+
 	var sum float32
 	for i := range a {
 		diff := a[i] - b[i]
 		sum += diff * diff
 	}
-	
+
 	return float32(math.Sqrt(float64(sum))), nil
 }
 

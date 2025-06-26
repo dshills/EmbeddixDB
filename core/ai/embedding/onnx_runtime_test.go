@@ -18,7 +18,7 @@ func TestNewRealONNXTensor(t *testing.T) {
 	if err := initONNXRuntime(); err != nil {
 		t.Skipf("Failed to initialize ONNX Runtime: %v", err)
 	}
-	
+
 	testCases := []struct {
 		name        string
 		data        interface{}
@@ -60,34 +60,34 @@ func TestNewRealONNXTensor(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tensor, err := NewRealONNXTensor(tc.data, tc.shape)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if tensor == nil {
 				t.Fatal("Expected tensor to be created")
 			}
-			
+
 			// Verify shape
 			actualShape := tensor.GetShape()
 			if len(actualShape) != len(tc.shape) {
 				t.Errorf("Expected shape length %d, got %d", len(tc.shape), len(actualShape))
 			}
-			
+
 			for i, dim := range tc.shape {
 				if i < len(actualShape) && actualShape[i] != dim {
 					t.Errorf("Expected shape[%d] = %d, got %d", i, dim, actualShape[i])
 				}
 			}
-			
+
 			// Clean up
 			tensor.Destroy()
 		})
@@ -98,7 +98,7 @@ func TestCreateInputTensorFromTokens(t *testing.T) {
 	if err := initONNXRuntime(); err != nil {
 		t.Skipf("Failed to initialize ONNX Runtime: %v", err)
 	}
-	
+
 	testCases := []struct {
 		name        string
 		tokens      [][]int64
@@ -140,41 +140,41 @@ func TestCreateInputTensorFromTokens(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tensor, err := CreateInputTensorFromTokens(tc.tokens, tc.inputName)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if tensor == nil {
 				t.Fatal("Expected tensor to be created")
 			}
-			
+
 			// Verify shape
 			shape := tensor.GetShape()
 			if len(shape) != 2 {
 				t.Errorf("Expected 2D tensor, got shape: %v", shape)
 			}
-			
+
 			if len(tc.tokens) > 0 {
 				expectedBatchSize := int64(len(tc.tokens))
 				expectedSeqLen := int64(len(tc.tokens[0]))
-				
+
 				if shape[0] != expectedBatchSize {
 					t.Errorf("Expected batch size %d, got %d", expectedBatchSize, shape[0])
 				}
-				
+
 				if shape[1] != expectedSeqLen {
 					t.Errorf("Expected sequence length %d, got %d", expectedSeqLen, shape[1])
 				}
 			}
-			
+
 			// Clean up
 			tensor.Destroy()
 		})
@@ -185,7 +185,7 @@ func TestCreateAttentionMaskTensor(t *testing.T) {
 	if err := initONNXRuntime(); err != nil {
 		t.Skipf("Failed to initialize ONNX Runtime: %v", err)
 	}
-	
+
 	testCases := []struct {
 		name        string
 		masks       [][]int64
@@ -216,41 +216,41 @@ func TestCreateAttentionMaskTensor(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tensor, err := CreateAttentionMaskTensor(tc.masks)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if tensor == nil {
 				t.Fatal("Expected tensor to be created")
 			}
-			
+
 			// Verify shape
 			shape := tensor.GetShape()
 			if len(shape) != 2 {
 				t.Errorf("Expected 2D tensor, got shape: %v", shape)
 			}
-			
+
 			if len(tc.masks) > 0 {
 				expectedBatchSize := int64(len(tc.masks))
 				expectedSeqLen := int64(len(tc.masks[0]))
-				
+
 				if shape[0] != expectedBatchSize {
 					t.Errorf("Expected batch size %d, got %d", expectedBatchSize, shape[0])
 				}
-				
+
 				if shape[1] != expectedSeqLen {
 					t.Errorf("Expected sequence length %d, got %d", expectedSeqLen, shape[1])
 				}
 			}
-			
+
 			// Clean up
 			tensor.Destroy()
 		})
@@ -261,7 +261,7 @@ func TestExtractEmbeddingsFromTensor(t *testing.T) {
 	if err := initONNXRuntime(); err != nil {
 		t.Skipf("Failed to initialize ONNX Runtime: %v", err)
 	}
-	
+
 	testCases := []struct {
 		name            string
 		data            []float32
@@ -331,30 +331,30 @@ func TestExtractEmbeddingsFromTensor(t *testing.T) {
 				t.Fatalf("Failed to create test tensor: %v", err)
 			}
 			defer tensor.Destroy()
-			
+
 			embeddings, err := ExtractEmbeddingsFromTensor(tensor, tc.poolingStrategy)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if len(embeddings) != tc.expectedBatch {
 				t.Errorf("Expected %d embeddings, got %d", tc.expectedBatch, len(embeddings))
 			}
-			
+
 			for i, embedding := range embeddings {
 				if len(embedding) != tc.expectedDim {
 					t.Errorf("Embedding %d: expected dimension %d, got %d", i, tc.expectedDim, len(embedding))
 				}
 			}
-			
+
 			t.Logf("Extracted embeddings shape: [%d, %d]", len(embeddings), len(embeddings[0]))
 		})
 	}
@@ -375,7 +375,7 @@ func TestGetAvailableProviders(t *testing.T) {
 	if len(providers) == 0 {
 		t.Error("Expected at least one execution provider")
 	}
-	
+
 	// Should at least have CPU provider
 	hasCPU := false
 	for _, provider := range providers {
@@ -384,11 +384,11 @@ func TestGetAvailableProviders(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if !hasCPU {
 		t.Error("Expected CPUExecutionProvider to be available")
 	}
-	
+
 	t.Logf("Available providers: %v", providers)
 }
 
@@ -396,7 +396,7 @@ func TestGetAvailableProviders(t *testing.T) {
 // In a real scenario, you would use an actual ONNX model file
 func TestNewRealONNXSession_NonExistentModel(t *testing.T) {
 	nonExistentPath := "/path/to/nonexistent/model.onnx"
-	
+
 	session, err := NewRealONNXSession(nonExistentPath)
 	if err == nil {
 		t.Error("Expected error for non-existent model file")
@@ -404,7 +404,7 @@ func TestNewRealONNXSession_NonExistentModel(t *testing.T) {
 			session.Destroy()
 		}
 	}
-	
+
 	if session != nil {
 		t.Error("Expected session to be nil for non-existent model")
 	}
@@ -419,7 +419,7 @@ func TestNewRealONNXSession_EmptyPath(t *testing.T) {
 			session.Destroy()
 		}
 	}
-	
+
 	if session != nil {
 		t.Error("Expected session to be nil for empty path")
 	}
@@ -432,33 +432,33 @@ func TestRealONNXSession_Integration(t *testing.T) {
 	if modelPath == "" {
 		t.Skip("Skipping integration test - set TEST_ONNX_MODEL_PATH environment variable to test with real model")
 	}
-	
+
 	session, err := NewRealONNXSession(modelPath)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
 	defer session.Destroy()
-	
+
 	// Test session properties
 	if session.GetInputCount() <= 0 {
 		t.Error("Expected at least one input")
 	}
-	
+
 	if session.GetOutputCount() <= 0 {
 		t.Error("Expected at least one output")
 	}
-	
+
 	// Test input/output names
 	inputName := session.GetInputName(0)
 	if inputName == "" {
 		t.Error("Expected non-empty input name")
 	}
-	
+
 	outputName := session.GetOutputName(0)
 	if outputName == "" {
 		t.Error("Expected non-empty output name")
 	}
-	
+
 	t.Logf("Model inputs: %d, outputs: %d", session.GetInputCount(), session.GetOutputCount())
 	t.Logf("First input: %s, first output: %s", inputName, outputName)
 }

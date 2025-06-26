@@ -7,15 +7,15 @@ import (
 
 func TestNewLanguageDetector(t *testing.T) {
 	detector := NewLanguageDetector()
-	
+
 	if detector == nil {
 		t.Fatal("Expected detector to be created, got nil")
 	}
-	
+
 	if len(detector.languagePatterns) == 0 {
 		t.Error("Expected language patterns to be populated")
 	}
-	
+
 	// Check that expected languages are supported
 	expectedLanguages := []string{"en", "es", "fr", "de", "pt", "it", "ru", "zh", "ja", "ar"}
 	for _, lang := range expectedLanguages {
@@ -28,12 +28,12 @@ func TestNewLanguageDetector(t *testing.T) {
 func TestLanguageDetector_DetectLanguage(t *testing.T) {
 	detector := NewLanguageDetector()
 	ctx := context.Background()
-	
+
 	testCases := []struct {
-		name            string
-		content         string
-		expectedLang    string
-		minConfidence   float64
+		name          string
+		content       string
+		expectedLang  string
+		minConfidence float64
 	}{
 		{
 			name:          "english text",
@@ -44,7 +44,7 @@ func TestLanguageDetector_DetectLanguage(t *testing.T) {
 		{
 			name:          "spanish text",
 			content:       "Este es un texto en español sobre tecnología y negocios en el mundo moderno.",
-			expectedLang:  "es", 
+			expectedLang:  "es",
 			minConfidence: 0.1,
 		},
 		{
@@ -60,7 +60,7 @@ func TestLanguageDetector_DetectLanguage(t *testing.T) {
 			minConfidence: 0.1,
 		},
 		{
-			name:          "portuguese text", 
+			name:          "portuguese text",
 			content:       "Este é um texto em português sobre tecnologia e inovação no mundo moderno.",
 			expectedLang:  "pt",
 			minConfidence: 0.1,
@@ -102,27 +102,27 @@ func TestLanguageDetector_DetectLanguage(t *testing.T) {
 			minConfidence: 0.0,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := detector.DetectLanguage(ctx, tc.content)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			// Language detection can be imprecise, so we log mismatches rather than fail
 			if result.Code != tc.expectedLang {
 				t.Logf("Expected language %s, got %s (detection can be imprecise)", tc.expectedLang, result.Code)
 			}
-			
+
 			if result.Confidence < tc.minConfidence {
 				t.Errorf("Expected confidence at least %f, got %f", tc.minConfidence, result.Confidence)
 			}
-			
+
 			if result.Confidence < 0 || result.Confidence > 1 {
 				t.Errorf("Confidence should be between 0 and 1, got %f", result.Confidence)
 			}
-			
+
 			if result.Name == "" {
 				t.Error("Expected language name to be populated")
 			}
@@ -133,17 +133,17 @@ func TestLanguageDetector_DetectLanguage(t *testing.T) {
 func TestGetSupportedLanguages(t *testing.T) {
 	detector := NewLanguageDetector()
 	languages := detector.GetSupportedLanguages()
-	
+
 	if len(languages) == 0 {
 		t.Error("Expected supported languages to be returned")
 	}
-	
+
 	expectedLanguages := []string{"en", "es", "fr", "de", "pt", "it", "ru", "zh", "ja", "ar"}
 	languageMap := make(map[string]bool)
 	for _, lang := range languages {
 		languageMap[lang] = true
 	}
-	
+
 	for _, expectedLang := range expectedLanguages {
 		if !languageMap[expectedLang] {
 			t.Errorf("Expected language %s not found in supported languages", expectedLang)
@@ -153,7 +153,7 @@ func TestGetSupportedLanguages(t *testing.T) {
 
 func TestGetLanguageName(t *testing.T) {
 	detector := NewLanguageDetector()
-	
+
 	testCases := []struct {
 		code         string
 		expectedName string
@@ -171,7 +171,7 @@ func TestGetLanguageName(t *testing.T) {
 		{"unknown", "Unknown"},
 		{"xyz", "Unknown"},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.code, func(t *testing.T) {
 			name := detector.GetLanguageName(tc.code)
@@ -184,23 +184,23 @@ func TestGetLanguageName(t *testing.T) {
 
 func TestLanguageScoring(t *testing.T) {
 	detector := NewLanguageDetector()
-	
+
 	// Test that English text gets higher English score
 	englishText := "the quick brown fox jumps over the lazy dog"
 	englishWords := []string{"the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"}
 	englishPattern := detector.languagePatterns["en"]
-	
+
 	englishScore := detector.calculateLanguageScore(englishText, englishWords, englishPattern)
-	
+
 	// Test that same text gets lower score for a different language
 	spanishPattern := detector.languagePatterns["es"]
 	spanishScore := detector.calculateLanguageScore(englishText, englishWords, spanishPattern)
-	
+
 	if englishScore <= spanishScore {
-		t.Errorf("Expected English text to score higher for English (%f) than Spanish (%f)", 
+		t.Errorf("Expected English text to score higher for English (%f) than Spanish (%f)",
 			englishScore, spanishScore)
 	}
-	
+
 	// Test empty text
 	emptyScore := detector.calculateLanguageScore("", []string{}, englishPattern)
 	if emptyScore != 0.0 {
@@ -210,7 +210,7 @@ func TestLanguageScoring(t *testing.T) {
 
 func TestLanguageDetector_TextNormalization(t *testing.T) {
 	detector := NewLanguageDetector()
-	
+
 	testCases := []struct {
 		name     string
 		input    string
@@ -247,7 +247,7 @@ func TestLanguageDetector_TextNormalization(t *testing.T) {
 			expected: "",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := detector.normalizeText(tc.input)
@@ -260,35 +260,35 @@ func TestLanguageDetector_TextNormalization(t *testing.T) {
 
 func TestScriptScoring(t *testing.T) {
 	detector := NewLanguageDetector()
-	
+
 	// Test Latin script (should work for English, Spanish, etc.)
 	latinRanges := []UnicodeRange{
 		{Start: 'A', End: 'Z', Name: "Latin uppercase"},
 		{Start: 'a', End: 'z', Name: "Latin lowercase"},
 	}
-	
+
 	latinText := "Hello World"
 	latinScore := detector.calculateScriptScore(latinText, latinRanges)
-	
+
 	if latinScore == 0.0 {
 		t.Error("Expected non-zero score for Latin text with Latin ranges")
 	}
-	
+
 	if latinScore > 1.0 {
 		t.Errorf("Expected script score <= 1.0, got %f", latinScore)
 	}
-	
+
 	// Test with empty ranges
 	emptyScore := detector.calculateScriptScore(latinText, []UnicodeRange{})
 	if emptyScore != 0.0 {
 		t.Errorf("Expected zero score for empty ranges, got %f", emptyScore)
 	}
-	
+
 	// Test with non-matching ranges
 	cyrillicRanges := []UnicodeRange{
 		{Start: 'А', End: 'я', Name: "Cyrillic"},
 	}
-	
+
 	cyrillicScore := detector.calculateScriptScore(latinText, cyrillicRanges)
 	if cyrillicScore != 0.0 {
 		t.Errorf("Expected zero score for non-matching script, got %f", cyrillicScore)

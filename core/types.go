@@ -44,7 +44,7 @@ type RangeSearchRequest struct {
 	Radius         float32           `json:"radius"`           // Maximum distance threshold
 	Filter         map[string]string `json:"filter,omitempty"` // Optional metadata filters
 	IncludeVectors bool              `json:"include_vectors,omitempty"`
-	Limit          int               `json:"limit,omitempty"`  // Optional limit on results (0 = no limit)
+	Limit          int               `json:"limit,omitempty"` // Optional limit on results (0 = no limit)
 }
 
 // RangeSearchResult contains vectors found within the specified range

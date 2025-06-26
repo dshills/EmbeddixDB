@@ -21,7 +21,7 @@ type PersonalizedSearchManager struct {
 	feedbackManager *FeedbackManager
 	reranker        feedback.Reranker
 	modelManager    ai.ModelManager
-	
+
 	// Configuration
 	config PersonalizedSearchConfig
 }
@@ -55,32 +55,32 @@ type PersonalizedSearchRequest struct {
 	Vector       []float32              `json:"vector,omitempty"`
 	K            int                    `json:"k"`
 	Filter       map[string]interface{} `json:"filter,omitempty"`
-	
+
 	// Personalization parameters
-	UserID       string                 `json:"user_id,omitempty"`
-	SessionID    string                 `json:"session_id,omitempty"`
-	SearchMode   string                 `json:"search_mode,omitempty"` // "vector", "text", "hybrid", "auto"
-	
+	UserID     string `json:"user_id,omitempty"`
+	SessionID  string `json:"session_id,omitempty"`
+	SearchMode string `json:"search_mode,omitempty"` // "vector", "text", "hybrid", "auto"
+
 	// Weight overrides
-	VectorWeight *float64               `json:"vector_weight,omitempty"`
-	TextWeight   *float64               `json:"text_weight,omitempty"`
-	
+	VectorWeight *float64 `json:"vector_weight,omitempty"`
+	TextWeight   *float64 `json:"text_weight,omitempty"`
+
 	// Advanced options
-	EnableReranking      bool           `json:"enable_reranking"`
-	EnablePersonalization bool          `json:"enable_personalization"`
-	CollectFeedback      bool           `json:"collect_feedback"`
-	BoostFields          map[string]float64 `json:"boost_fields,omitempty"`
+	EnableReranking       bool               `json:"enable_reranking"`
+	EnablePersonalization bool               `json:"enable_personalization"`
+	CollectFeedback       bool               `json:"collect_feedback"`
+	BoostFields           map[string]float64 `json:"boost_fields,omitempty"`
 }
 
 // PersonalizedSearchResult extends the basic search result
 type PersonalizedSearchResult struct {
-	ID               string                 `json:"id"`
-	Score            float64                `json:"score"`
-	PersonalizedScore float64               `json:"personalized_score"`
-	Vector           []float32              `json:"vector,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
-	Explanation      map[string]interface{} `json:"explanation,omitempty"`
-	Position         int                    `json:"position"`
+	ID                string                 `json:"id"`
+	Score             float64                `json:"score"`
+	PersonalizedScore float64                `json:"personalized_score"`
+	Vector            []float32              `json:"vector,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
+	Explanation       map[string]interface{} `json:"explanation,omitempty"`
+	Position          int                    `json:"position"`
 }
 
 // PersonalizedSearchResponse contains the search response with additional context
@@ -102,14 +102,14 @@ func NewPersonalizedSearchManager(
 	feedbackManager *FeedbackManager,
 	config PersonalizedSearchConfig,
 ) *PersonalizedSearchManager {
-	
+
 	// Create reranker
 	reranker := feedback.NewContextualReranker(
 		feedbackManager.Collector,
 		feedbackManager.ProfileManager,
 		feedbackManager.LearningEngine,
 	)
-	
+
 	return &PersonalizedSearchManager{
 		vectorStore:     vectorStore,
 		textEngine:      textEngine,
@@ -123,16 +123,16 @@ func NewPersonalizedSearchManager(
 // Search performs personalized hybrid search
 func (m *PersonalizedSearchManager) Search(ctx context.Context, req PersonalizedSearchRequest) (*PersonalizedSearchResponse, error) {
 	startTime := time.Now()
-	
+
 	// Generate query ID for tracking
 	queryID := generateQueryID()
-	
+
 	// Get or create session
 	session, err := m.getOrCreateSession(ctx, req.UserID, req.SessionID)
 	if err != nil {
 		return nil, fmt.Errorf("session error: %w", err)
 	}
-	
+
 	// Get user profile if personalization is enabled
 	var userProfile *feedback.UserProfile
 	if req.EnablePersonalization && req.UserID != "" {
@@ -142,22 +142,22 @@ func (m *PersonalizedSearchManager) Search(ctx context.Context, req Personalized
 			userProfile, _ = m.feedbackManager.ProfileManager.CreateProfile(ctx, req.UserID)
 		}
 	}
-	
+
 	// Determine search weights
 	vectorWeight, textWeight := m.determineSearchWeights(req, userProfile)
-	
+
 	// Determine search mode
 	searchMode := m.determineSearchMode(req, vectorWeight, textWeight)
-	
+
 	// Perform base search
 	results, err := m.performBaseSearch(ctx, req, searchMode, vectorWeight, textWeight)
 	if err != nil {
 		return nil, fmt.Errorf("search error: %w", err)
 	}
-	
+
 	// Convert to feedback search results for reranking
 	feedbackResults := m.convertToFeedbackResults(results, req.CollectionID)
-	
+
 	// Apply re-ranking if enabled
 	if req.EnableReranking || m.config.EnableLearning {
 		rerankCtx := feedback.RerankingContext{
@@ -167,38 +167,38 @@ func (m *PersonalizedSearchManager) Search(ctx context.Context, req Personalized
 			Timestamp:   time.Now(),
 			UserProfile: userProfile,
 		}
-		
+
 		// Get session history for context
 		if m.config.EnableSessionContext {
 			history, _ := m.getSessionHistory(ctx, session.ID)
 			rerankCtx.SessionHistory = history
 		}
-		
+
 		// Rerank results
 		rerankedResults, err := m.reranker.Rerank(ctx, feedbackResults, rerankCtx)
 		if err == nil {
 			feedbackResults = rerankedResults
 		}
 	}
-	
+
 	// Convert back to personalized results
 	personalizedResults := m.convertToPersonalizedResults(feedbackResults)
-	
+
 	// Record query feedback if enabled
 	if req.CollectFeedback {
 		m.recordQueryFeedback(ctx, queryID, req, session.ID, len(personalizedResults))
 	}
-	
+
 	// Update user profile based on query
 	if userProfile != nil {
 		m.updateUserProfileFromQuery(ctx, req.UserID, req.Query, personalizedResults)
 	}
-	
+
 	// Record impressions for CTR tracking
 	if m.feedbackManager.CTRTracker != nil && req.CollectFeedback {
 		m.recordImpressions(ctx, queryID, req, session.ID, personalizedResults)
 	}
-	
+
 	// Build response
 	response := &PersonalizedSearchResponse{
 		Results:      personalizedResults,
@@ -209,7 +209,7 @@ func (m *PersonalizedSearchManager) Search(ctx context.Context, req Personalized
 		SearchTime:   time.Since(startTime),
 		Personalized: req.EnablePersonalization && userProfile != nil,
 	}
-	
+
 	return response, nil
 }
 
@@ -219,7 +219,7 @@ func (m *PersonalizedSearchManager) RecordInteraction(ctx context.Context, inter
 	if err := m.feedbackManager.Collector.RecordInteraction(ctx, interaction); err != nil {
 		return err
 	}
-	
+
 	// Record click for CTR tracking
 	if m.feedbackManager.CTRTracker != nil && interaction.Type == feedback.InteractionTypeClick {
 		click := feedback.Click{
@@ -233,17 +233,17 @@ func (m *PersonalizedSearchManager) RecordInteraction(ctx context.Context, inter
 		}
 		m.feedbackManager.CTRTracker.RecordClick(ctx, click)
 	}
-	
+
 	// Update user interests based on interaction
-	if interaction.Type == feedback.InteractionTypeClick || 
-	   interaction.Type == feedback.InteractionTypeDwell ||
-	   interaction.Type == feedback.InteractionTypeRating {
+	if interaction.Type == feedback.InteractionTypeClick ||
+		interaction.Type == feedback.InteractionTypeDwell ||
+		interaction.Type == feedback.InteractionTypeRating {
 		m.updateUserInterestsFromInteraction(ctx, interaction)
 	}
-	
+
 	// Trigger model update if enough feedback collected
 	m.triggerModelUpdateIfNeeded(ctx)
-	
+
 	return nil
 }
 
@@ -256,19 +256,19 @@ func (m *PersonalizedSearchManager) getOrCreateSession(ctx context.Context, user
 			return session, nil
 		}
 	}
-	
+
 	// Create new session
 	if userID == "" {
 		userID = "anonymous"
 	}
-	
+
 	return m.feedbackManager.SessionManager.CreateSession(ctx, userID, nil)
 }
 
 func (m *PersonalizedSearchManager) determineSearchWeights(req PersonalizedSearchRequest, profile *feedback.UserProfile) (float64, float64) {
 	vectorWeight := m.config.DefaultVectorWeight
 	textWeight := m.config.DefaultTextWeight
-	
+
 	// Use request overrides if provided
 	if req.VectorWeight != nil {
 		vectorWeight = *req.VectorWeight
@@ -276,7 +276,7 @@ func (m *PersonalizedSearchManager) determineSearchWeights(req PersonalizedSearc
 	if req.TextWeight != nil {
 		textWeight = *req.TextWeight
 	}
-	
+
 	// Apply user preferences if available
 	if profile != nil && req.EnablePersonalization {
 		if req.VectorWeight == nil {
@@ -286,14 +286,14 @@ func (m *PersonalizedSearchManager) determineSearchWeights(req PersonalizedSearc
 			textWeight = profile.Preferences.TextWeight
 		}
 	}
-	
+
 	// Normalize weights
 	total := vectorWeight + textWeight
 	if total > 0 {
 		vectorWeight /= total
 		textWeight /= total
 	}
-	
+
 	return vectorWeight, textWeight
 }
 
@@ -301,11 +301,11 @@ func (m *PersonalizedSearchManager) determineSearchMode(req PersonalizedSearchRe
 	if req.SearchMode != "" && req.SearchMode != "auto" {
 		return req.SearchMode
 	}
-	
+
 	// Auto-determine based on inputs and weights
 	hasVector := len(req.Vector) > 0
 	hasQuery := req.Query != ""
-	
+
 	if hasVector && hasQuery {
 		return "hybrid"
 	} else if hasVector {
@@ -313,7 +313,7 @@ func (m *PersonalizedSearchManager) determineSearchMode(req PersonalizedSearchRe
 	} else if hasQuery {
 		return "text"
 	}
-	
+
 	// Default based on weights
 	if vectorWeight > textWeight {
 		return "vector"
@@ -327,7 +327,7 @@ func (m *PersonalizedSearchManager) performBaseSearch(
 	searchMode string,
 	vectorWeight, textWeight float64,
 ) ([]ai.SearchResult, error) {
-	
+
 	switch searchMode {
 	case "vector":
 		return m.performVectorSearch(ctx, req)
@@ -344,19 +344,19 @@ func (m *PersonalizedSearchManager) performVectorSearch(ctx context.Context, req
 	if len(req.Vector) == 0 {
 		return nil, fmt.Errorf("vector required for vector search")
 	}
-	
+
 	searchReq := core.SearchRequest{
 		Query:          req.Vector,
 		TopK:           req.K,
 		Filter:         convertStringMap(req.Filter),
 		IncludeVectors: false,
 	}
-	
+
 	results, err := m.vectorStore.Search(ctx, req.CollectionID, searchReq)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert to search results
 	searchResults := make([]ai.SearchResult, len(results))
 	for i, r := range results {
@@ -369,7 +369,7 @@ func (m *PersonalizedSearchManager) performVectorSearch(ctx context.Context, req
 			},
 		}
 	}
-	
+
 	return searchResults, nil
 }
 
@@ -377,12 +377,12 @@ func (m *PersonalizedSearchManager) performTextSearch(ctx context.Context, req P
 	if req.Query == "" {
 		return nil, fmt.Errorf("query required for text search")
 	}
-	
+
 	results, err := m.textEngine.Search(ctx, req.Query, req.K)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert to search results
 	searchResults := make([]ai.SearchResult, 0, len(results))
 	for _, r := range results {
@@ -391,7 +391,7 @@ func (m *PersonalizedSearchManager) performTextSearch(ctx context.Context, req P
 		if err != nil {
 			continue
 		}
-		
+
 		searchResults = append(searchResults, ai.SearchResult{
 			ID:       r.ID,
 			Score:    r.Score,
@@ -401,7 +401,7 @@ func (m *PersonalizedSearchManager) performTextSearch(ctx context.Context, req P
 			},
 		})
 	}
-	
+
 	return searchResults, nil
 }
 
@@ -410,12 +410,12 @@ func (m *PersonalizedSearchManager) performHybridSearch(
 	req PersonalizedSearchRequest,
 	vectorWeight, textWeight float64,
 ) ([]ai.SearchResult, error) {
-	
+
 	// Parallel search
 	var vectorResults, textResults []ai.SearchResult
 	var vectorErr, textErr error
 	var wg sync.WaitGroup
-	
+
 	if len(req.Vector) > 0 && vectorWeight > 0 {
 		wg.Add(1)
 		go func() {
@@ -423,7 +423,7 @@ func (m *PersonalizedSearchManager) performHybridSearch(
 			vectorResults, vectorErr = m.performVectorSearch(ctx, req)
 		}()
 	}
-	
+
 	if req.Query != "" && textWeight > 0 {
 		wg.Add(1)
 		go func() {
@@ -431,22 +431,22 @@ func (m *PersonalizedSearchManager) performHybridSearch(
 			textResults, textErr = m.performTextSearch(ctx, req)
 		}()
 	}
-	
+
 	wg.Wait()
-	
+
 	// Check errors
 	if vectorErr != nil && textErr != nil {
 		return nil, fmt.Errorf("both searches failed: vector=%v, text=%v", vectorErr, textErr)
 	}
-	
+
 	// Fuse results using RRF
 	results := m.fuseResults(vectorResults, textResults, vectorWeight, textWeight)
-	
+
 	// Limit results
 	if len(results) > req.K {
 		results = results[:req.K]
 	}
-	
+
 	return results, nil
 }
 
@@ -500,7 +500,7 @@ func (m *PersonalizedSearchManager) recordQueryFeedback(
 		Timestamp:   time.Now(),
 		ResultCount: resultCount,
 	}
-	
+
 	m.feedbackManager.Collector.RecordQuery(ctx, feedback)
 }
 
@@ -513,27 +513,27 @@ func (m *PersonalizedSearchManager) updateUserProfileFromQuery(
 	// Extract topics and entities from top results
 	topics := make(map[string]float64)
 	entities := make(map[string]float64)
-	
+
 	for i, result := range results {
 		if i >= 5 { // Only consider top 5 results
 			break
 		}
-		
+
 		weight := 1.0 / float64(i+1) // Weight by position
-		
+
 		if resultTopics, ok := result.Metadata["topics"].([]string); ok {
 			for _, topic := range resultTopics {
 				topics[topic] += weight * 0.1 // Small increment for query
 			}
 		}
-		
+
 		if resultEntities, ok := result.Metadata["entities"].([]string); ok {
 			for _, entity := range resultEntities {
 				entities[entity] += weight * 0.1
 			}
 		}
 	}
-	
+
 	// Update profile
 	m.feedbackManager.ProfileManager.IncrementInterests(ctx, userID, topics, entities)
 }
@@ -542,13 +542,13 @@ func (m *PersonalizedSearchManager) updateUserInterestsFromInteraction(ctx conte
 	if interaction.UserID == "" {
 		return
 	}
-	
+
 	// Get document to extract topics/entities
 	vector, err := m.vectorStore.GetVector(ctx, interaction.CollectionID, interaction.DocumentID)
 	if err != nil || vector.Metadata == nil {
 		return
 	}
-	
+
 	// Weight based on interaction type
 	weight := 0.0
 	switch interaction.Type {
@@ -563,15 +563,15 @@ func (m *PersonalizedSearchManager) updateUserInterestsFromInteraction(ctx conte
 	case feedback.InteractionTypeRating:
 		weight = interaction.Value / 5.0
 	}
-	
+
 	if weight <= 0 {
 		return
 	}
-	
+
 	// Extract and update interests
 	topics := make(map[string]float64)
 	entities := make(map[string]float64)
-	
+
 	// Parse topics from metadata (assuming comma-separated string)
 	if topicsStr, ok := vector.Metadata["topics"]; ok {
 		for _, topic := range strings.Split(topicsStr, ",") {
@@ -580,8 +580,8 @@ func (m *PersonalizedSearchManager) updateUserInterestsFromInteraction(ctx conte
 			}
 		}
 	}
-	
-	// Parse entities from metadata (assuming comma-separated string)  
+
+	// Parse entities from metadata (assuming comma-separated string)
 	if entitiesStr, ok := vector.Metadata["entities"]; ok {
 		for _, entity := range strings.Split(entitiesStr, ",") {
 			if entity = strings.TrimSpace(entity); entity != "" {
@@ -589,7 +589,7 @@ func (m *PersonalizedSearchManager) updateUserInterestsFromInteraction(ctx conte
 			}
 		}
 	}
-	
+
 	m.feedbackManager.ProfileManager.IncrementInterests(ctx, interaction.UserID, topics, entities)
 }
 
@@ -598,7 +598,7 @@ func (m *PersonalizedSearchManager) getSessionHistory(ctx context.Context, sessi
 		SessionID: sessionID,
 		Limit:     20, // Last 20 interactions
 	}
-	
+
 	return m.feedbackManager.Collector.GetInteractions(ctx, filter)
 }
 
@@ -660,7 +660,7 @@ func getAITextScore(r ai.SearchResult) float64 {
 func (m *PersonalizedSearchManager) fuseResults(vectorResults, textResults []ai.SearchResult, vectorWeight, textWeight float64) []ai.SearchResult {
 	// Create a map to track document scores
 	docScores := make(map[string]*fusedScore)
-	
+
 	// Process vector results
 	for i, result := range vectorResults {
 		docScores[result.ID] = &fusedScore{
@@ -669,7 +669,7 @@ func (m *PersonalizedSearchManager) fuseResults(vectorResults, textResults []ai.
 			vectorScore: result.Score,
 		}
 	}
-	
+
 	// Process text results
 	for i, result := range textResults {
 		if fs, exists := docScores[result.ID]; exists {
@@ -683,23 +683,23 @@ func (m *PersonalizedSearchManager) fuseResults(vectorResults, textResults []ai.
 			}
 		}
 	}
-	
+
 	// Calculate fused scores using RRF
 	k := 60.0 // RRF constant
 	for _, fs := range docScores {
 		vectorRRF := 0.0
 		textRRF := 0.0
-		
+
 		if fs.vectorRank > 0 {
 			vectorRRF = 1.0 / (k + float64(fs.vectorRank))
 		}
 		if fs.textRank > 0 {
 			textRRF = 1.0 / (k + float64(fs.textRank))
 		}
-		
+
 		fs.fusedScore = vectorWeight*vectorRRF + textWeight*textRRF
 	}
-	
+
 	// Convert to slice and sort
 	results := make([]ai.SearchResult, 0, len(docScores))
 	for _, fs := range docScores {
@@ -713,11 +713,11 @@ func (m *PersonalizedSearchManager) fuseResults(vectorResults, textResults []ai.
 		result.Explanation.TextScore = fs.textScore
 		results = append(results, result)
 	}
-	
+
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
-	
+
 	return results
 }
 
@@ -750,7 +750,7 @@ func (m *PersonalizedSearchManager) recordImpressions(
 			ResultCount: len(results),
 			SearchMode:  req.SearchMode,
 		}
-		
+
 		// Record impression (ignore errors for non-critical operation)
 		m.feedbackManager.CTRTracker.RecordImpression(ctx, impression)
 	}
@@ -765,25 +765,25 @@ func (m *PersonalizedSearchManager) GetCTROptimizedRanking(
 	if m.feedbackManager.CTRTracker == nil {
 		return results, nil
 	}
-	
+
 	// Extract document IDs
 	docIDs := make([]string, len(results))
 	for i, r := range results {
 		docIDs[i] = r.ID
 	}
-	
+
 	// Get optimal ranking based on CTR
 	optimalIDs, err := m.feedbackManager.CTRTracker.GetOptimalRanking(ctx, docIDs, query)
 	if err != nil {
 		return results, err
 	}
-	
+
 	// Create a map for quick lookup
 	resultMap := make(map[string]PersonalizedSearchResult)
 	for _, r := range results {
 		resultMap[r.ID] = r
 	}
-	
+
 	// Reorder results
 	reorderedResults := make([]PersonalizedSearchResult, 0, len(results))
 	for i, id := range optimalIDs {
@@ -792,7 +792,7 @@ func (m *PersonalizedSearchManager) GetCTROptimizedRanking(
 			reorderedResults = append(reorderedResults, r)
 		}
 	}
-	
+
 	return reorderedResults, nil
 }
 
@@ -801,7 +801,7 @@ func (m *PersonalizedSearchManager) GetCTRReport(ctx context.Context) (feedback.
 	if m.feedbackManager.CTRTracker == nil {
 		return feedback.CTRReport{}, fmt.Errorf("CTR tracking not enabled")
 	}
-	
+
 	return m.feedbackManager.CTRTracker.ExportMetrics(ctx)
 }
 
@@ -819,4 +819,3 @@ func convertStringMap(input map[string]interface{}) map[string]string {
 	}
 	return result
 }
-

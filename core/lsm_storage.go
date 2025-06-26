@@ -15,31 +15,31 @@ import (
 type LSMStorage struct {
 	// Write-ahead log for immediate writes
 	wal *WriteAheadLog
-	
+
 	// In-memory table (memtable)
-	memtable *MemTable
+	memtable      *MemTable
 	memtableMutex sync.RWMutex
-	
+
 	// Immutable memtables waiting to be flushed
 	immutableTables []*MemTable
 	immutableMutex  sync.RWMutex
-	
+
 	// SSTable levels
-	levels []*SSTableLevel
+	levels      []*SSTableLevel
 	levelsMutex sync.RWMutex
-	
+
 	// Configuration
 	config LSMConfig
-	
+
 	// Background workers
 	flushChan   chan *MemTable
 	compactChan chan int // level to compact
 	stopChan    chan bool
 	wg          sync.WaitGroup
-	
+
 	// Statistics
 	stats LSMStats
-	
+
 	// Base directory
 	baseDir string
 }
@@ -47,24 +47,24 @@ type LSMStorage struct {
 // LSMConfig configures the LSM storage
 type LSMConfig struct {
 	MemTableSizeThreshold int64         // Size to trigger memtable flush
-	MaxLevels            int           // Maximum number of SSTable levels
-	LevelSizeMultiplier  int           // Size multiplier between levels
-	CompactionTrigger    int           // Number of SSTables to trigger compaction
-	WALSyncInterval      time.Duration // WAL sync interval
-	BackgroundWorkers    int           // Number of background workers
-	CompressionEnabled   bool          // Enable compression for SSTables
+	MaxLevels             int           // Maximum number of SSTable levels
+	LevelSizeMultiplier   int           // Size multiplier between levels
+	CompactionTrigger     int           // Number of SSTables to trigger compaction
+	WALSyncInterval       time.Duration // WAL sync interval
+	BackgroundWorkers     int           // Number of background workers
+	CompressionEnabled    bool          // Enable compression for SSTables
 }
 
 // DefaultLSMConfig returns sensible defaults
 func DefaultLSMConfig() LSMConfig {
 	return LSMConfig{
 		MemTableSizeThreshold: 64 * 1024 * 1024, // 64MB
-		MaxLevels:            7,                  // 7 levels
-		LevelSizeMultiplier:  10,                 // 10x growth per level
-		CompactionTrigger:    4,                  // Compact when 4+ SSTables
-		WALSyncInterval:      100 * time.Millisecond,
-		BackgroundWorkers:    2,
-		CompressionEnabled:   true,
+		MaxLevels:             7,                // 7 levels
+		LevelSizeMultiplier:   10,               // 10x growth per level
+		CompactionTrigger:     4,                // Compact when 4+ SSTables
+		WALSyncInterval:       100 * time.Millisecond,
+		BackgroundWorkers:     2,
+		CompressionEnabled:    true,
 	}
 }
 
@@ -105,23 +105,23 @@ type SSTable struct {
 
 // SSTableMetadata contains metadata about an SSTable
 type SSTableMetadata struct {
-	NumEntries     int64
-	CreatedAt      time.Time
-	Level          int
+	NumEntries      int64
+	CreatedAt       time.Time
+	Level           int
 	CompressionType string
-	BloomFilter    []byte // Bloom filter for existence checks
+	BloomFilter     []byte // Bloom filter for existence checks
 }
 
 // LSMStats tracks LSM storage statistics
 type LSMStats struct {
-	MemTableFlushes   int64
-	Compactions       int64
-	WritesTotal       int64
-	ReadsTotal        int64
-	WALSyncs          int64
-	DiskBytesRead     int64
-	DiskBytesWritten  int64
-	mutex             sync.RWMutex
+	MemTableFlushes  int64
+	Compactions      int64
+	WritesTotal      int64
+	ReadsTotal       int64
+	WALSyncs         int64
+	DiskBytesRead    int64
+	DiskBytesWritten int64
+	mutex            sync.RWMutex
 }
 
 // NewLSMStorage creates a new LSM storage instance
@@ -129,12 +129,12 @@ func NewLSMStorage(baseDir string, config LSMConfig) (*LSMStorage, error) {
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create base directory: %w", err)
 	}
-	
+
 	wal, err := NewWriteAheadLog(filepath.Join(baseDir, "wal"), config.WALSyncInterval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WAL: %w", err)
 	}
-	
+
 	lsm := &LSMStorage{
 		wal:         wal,
 		memtable:    NewMemTable(),
@@ -145,7 +145,7 @@ func NewLSMStorage(baseDir string, config LSMConfig) (*LSMStorage, error) {
 		stopChan:    make(chan bool),
 		baseDir:     baseDir,
 	}
-	
+
 	// Initialize levels
 	for i := 0; i < config.MaxLevels; i++ {
 		lsm.levels[i] = &SSTableLevel{
@@ -154,18 +154,18 @@ func NewLSMStorage(baseDir string, config LSMConfig) (*LSMStorage, error) {
 			maxSize: int64(config.MemTableSizeThreshold) * int64(intPow(config.LevelSizeMultiplier, i)),
 		}
 	}
-	
+
 	// Start background workers
 	for i := 0; i < config.BackgroundWorkers; i++ {
 		lsm.wg.Add(1)
 		go lsm.backgroundWorker()
 	}
-	
+
 	// Load existing SSTables
 	if err := lsm.loadExistingSSTables(); err != nil {
 		return nil, fmt.Errorf("failed to load existing SSTables: %w", err)
 	}
-	
+
 	return lsm, nil
 }
 
@@ -175,7 +175,7 @@ func (lsm *LSMStorage) Put(key string, vector Vector) error {
 	if err := lsm.wal.WriteEntry(key, vector, false); err != nil {
 		return fmt.Errorf("failed to write to WAL: %w", err)
 	}
-	
+
 	// Add to memtable
 	entry := &VectorEntry{
 		Vector:    vector,
@@ -183,21 +183,21 @@ func (lsm *LSMStorage) Put(key string, vector Vector) error {
 		Deleted:   false,
 		Size:      lsm.estimateVectorSize(vector),
 	}
-	
+
 	lsm.memtableMutex.Lock()
 	lsm.memtable.Put(key, entry)
 	needsFlush := lsm.memtable.size >= lsm.config.MemTableSizeThreshold
 	lsm.memtableMutex.Unlock()
-	
+
 	lsm.stats.mutex.Lock()
 	lsm.stats.WritesTotal++
 	lsm.stats.mutex.Unlock()
-	
+
 	// Trigger flush if memtable is full
 	if needsFlush {
 		lsm.triggerMemTableFlush()
 	}
-	
+
 	return nil
 }
 
@@ -206,7 +206,7 @@ func (lsm *LSMStorage) Get(key string) (Vector, bool, error) {
 	lsm.stats.mutex.Lock()
 	lsm.stats.ReadsTotal++
 	lsm.stats.mutex.Unlock()
-	
+
 	// Check memtable first
 	lsm.memtableMutex.RLock()
 	if entry, exists := lsm.memtable.Get(key); exists {
@@ -217,7 +217,7 @@ func (lsm *LSMStorage) Get(key string) (Vector, bool, error) {
 		return entry.Vector, true, nil
 	}
 	lsm.memtableMutex.RUnlock()
-	
+
 	// Check immutable memtables
 	lsm.immutableMutex.RLock()
 	for i := len(lsm.immutableTables) - 1; i >= 0; i-- {
@@ -230,11 +230,11 @@ func (lsm *LSMStorage) Get(key string) (Vector, bool, error) {
 		}
 	}
 	lsm.immutableMutex.RUnlock()
-	
+
 	// Check SSTables from newest to oldest
 	lsm.levelsMutex.RLock()
 	defer lsm.levelsMutex.RUnlock()
-	
+
 	for _, level := range lsm.levels {
 		level.mutex.RLock()
 		for i := len(level.tables) - 1; i >= 0; i-- {
@@ -254,7 +254,7 @@ func (lsm *LSMStorage) Get(key string) (Vector, bool, error) {
 		}
 		level.mutex.RUnlock()
 	}
-	
+
 	return Vector{}, false, nil
 }
 
@@ -264,7 +264,7 @@ func (lsm *LSMStorage) Delete(key string) error {
 	if err := lsm.wal.WriteEntry(key, Vector{}, true); err != nil {
 		return fmt.Errorf("failed to write tombstone to WAL: %w", err)
 	}
-	
+
 	// Add tombstone to memtable
 	entry := &VectorEntry{
 		Vector:    Vector{},
@@ -272,16 +272,16 @@ func (lsm *LSMStorage) Delete(key string) error {
 		Deleted:   true,
 		Size:      0,
 	}
-	
+
 	lsm.memtableMutex.Lock()
 	lsm.memtable.Put(key, entry)
 	needsFlush := lsm.memtable.size >= lsm.config.MemTableSizeThreshold
 	lsm.memtableMutex.Unlock()
-	
+
 	if needsFlush {
 		lsm.triggerMemTableFlush()
 	}
-	
+
 	return nil
 }
 
@@ -289,10 +289,10 @@ func (lsm *LSMStorage) Delete(key string) error {
 func (lsm *LSMStorage) Scan(startKey, endKey string, callback func(key string, vector Vector) error) error {
 	// This is a simplified implementation - a full implementation would
 	// need to merge data from all levels while avoiding duplicates
-	
+
 	// Collect all entries from memtable and immutable tables
 	entries := make(map[string]*VectorEntry)
-	
+
 	lsm.memtableMutex.RLock()
 	for key, entry := range lsm.memtable.data {
 		if key >= startKey && (endKey == "" || key <= endKey) {
@@ -300,7 +300,7 @@ func (lsm *LSMStorage) Scan(startKey, endKey string, callback func(key string, v
 		}
 	}
 	lsm.memtableMutex.RUnlock()
-	
+
 	lsm.immutableMutex.RLock()
 	for _, table := range lsm.immutableTables {
 		for key, entry := range table.data {
@@ -312,14 +312,14 @@ func (lsm *LSMStorage) Scan(startKey, endKey string, callback func(key string, v
 		}
 	}
 	lsm.immutableMutex.RUnlock()
-	
+
 	// Sort keys and call callback
 	keys := make([]string, 0, len(entries))
 	for key := range entries {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	
+
 	for _, key := range keys {
 		entry := entries[key]
 		if !entry.Deleted {
@@ -328,7 +328,7 @@ func (lsm *LSMStorage) Scan(startKey, endKey string, callback func(key string, v
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -337,14 +337,14 @@ func (lsm *LSMStorage) Close() error {
 	// Stop background workers
 	close(lsm.stopChan)
 	lsm.wg.Wait()
-	
+
 	// Flush remaining memtable
 	if lsm.memtable.size > 0 {
 		if err := lsm.flushMemTable(lsm.memtable); err != nil {
 			return fmt.Errorf("failed to flush final memtable: %w", err)
 		}
 	}
-	
+
 	// Close WAL
 	return lsm.wal.Close()
 }
@@ -353,7 +353,7 @@ func (lsm *LSMStorage) Close() error {
 func (lsm *LSMStorage) GetStats() LSMStats {
 	lsm.stats.mutex.RLock()
 	defer lsm.stats.mutex.RUnlock()
-	
+
 	return LSMStats{
 		MemTableFlushes:  lsm.stats.MemTableFlushes,
 		Compactions:      lsm.stats.Compactions,
@@ -369,19 +369,19 @@ func (lsm *LSMStorage) GetStats() LSMStats {
 
 func (lsm *LSMStorage) triggerMemTableFlush() {
 	lsm.memtableMutex.Lock()
-	
+
 	// Move current memtable to immutable list
 	lsm.memtable.readOnly = true
-	
+
 	lsm.immutableMutex.Lock()
 	lsm.immutableTables = append(lsm.immutableTables, lsm.memtable)
 	lsm.immutableMutex.Unlock()
-	
+
 	// Create new memtable
 	lsm.memtable = NewMemTable()
-	
+
 	lsm.memtableMutex.Unlock()
-	
+
 	// Trigger background flush
 	select {
 	case lsm.flushChan <- lsm.immutableTables[len(lsm.immutableTables)-1]:
@@ -392,7 +392,7 @@ func (lsm *LSMStorage) triggerMemTableFlush() {
 
 func (lsm *LSMStorage) backgroundWorker() {
 	defer lsm.wg.Done()
-	
+
 	for {
 		select {
 		case <-lsm.stopChan:
@@ -416,7 +416,7 @@ func (lsm *LSMStorage) flushMemTable(memtable *MemTable) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Add to level 0
 	lsm.levelsMutex.Lock()
 	lsm.levels[0].mutex.Lock()
@@ -424,7 +424,7 @@ func (lsm *LSMStorage) flushMemTable(memtable *MemTable) error {
 	needsCompaction := len(lsm.levels[0].tables) >= lsm.config.CompactionTrigger
 	lsm.levels[0].mutex.Unlock()
 	lsm.levelsMutex.Unlock()
-	
+
 	// Remove from immutable tables
 	lsm.immutableMutex.Lock()
 	for i, table := range lsm.immutableTables {
@@ -434,11 +434,11 @@ func (lsm *LSMStorage) flushMemTable(memtable *MemTable) error {
 		}
 	}
 	lsm.immutableMutex.Unlock()
-	
+
 	lsm.stats.mutex.Lock()
 	lsm.stats.MemTableFlushes++
 	lsm.stats.mutex.Unlock()
-	
+
 	// Trigger compaction if needed
 	if needsCompaction {
 		select {
@@ -446,7 +446,7 @@ func (lsm *LSMStorage) flushMemTable(memtable *MemTable) error {
 		default:
 		}
 	}
-	
+
 	return nil
 }
 
@@ -454,18 +454,18 @@ func (lsm *LSMStorage) writeSSTable(memtable *MemTable, level int) (*SSTable, er
 	// Generate SSTable ID
 	id := fmt.Sprintf("sst_%d_%d", level, time.Now().UnixNano())
 	filePath := filepath.Join(lsm.baseDir, fmt.Sprintf("level_%d", level), id+".sst")
-	
+
 	// Create directory if needed
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return nil, err
 	}
-	
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	
+
 	// Write header
 	header := SSTableHeader{
 		Version:     1,
@@ -474,44 +474,44 @@ func (lsm *LSMStorage) writeSSTable(memtable *MemTable, level int) (*SSTable, er
 		Level:       level,
 		Compression: lsm.config.CompressionEnabled,
 	}
-	
+
 	if err := lsm.writeSSTableHeader(file, header); err != nil {
 		return nil, err
 	}
-	
+
 	// Get sorted keys
 	keys := make([]string, 0, len(memtable.data))
 	for key := range memtable.data {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	
+
 	// Write entries
 	var minKey, maxKey string
 	var size int64
-	
+
 	for i, key := range keys {
 		entry := memtable.data[key]
-		
+
 		if i == 0 {
 			minKey = key
 		}
 		if i == len(keys)-1 {
 			maxKey = key
 		}
-		
+
 		entrySize, err := lsm.writeSSTableEntry(file, key, entry)
 		if err != nil {
 			return nil, err
 		}
 		size += entrySize
 	}
-	
+
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	sstable := &SSTable{
 		id:       id,
 		filepath: filePath,
@@ -525,11 +525,11 @@ func (lsm *LSMStorage) writeSSTable(memtable *MemTable, level int) (*SSTable, er
 			CompressionType: "none", // Simplified
 		},
 	}
-	
+
 	lsm.stats.mutex.Lock()
 	lsm.stats.DiskBytesWritten += fileInfo.Size()
 	lsm.stats.mutex.Unlock()
-	
+
 	return sstable, nil
 }
 
@@ -537,14 +537,14 @@ func (lsm *LSMStorage) compactLevel(level int) error {
 	if level >= len(lsm.levels)-1 {
 		return nil // Can't compact last level
 	}
-	
+
 	lsm.stats.mutex.Lock()
 	lsm.stats.Compactions++
 	lsm.stats.mutex.Unlock()
-	
+
 	// Simplified compaction - just merge all tables in level
 	// A full implementation would be more sophisticated
-	
+
 	return nil
 }
 
@@ -563,17 +563,17 @@ func (lsm *LSMStorage) keyInRange(key, minKey, maxKey string) bool {
 func (lsm *LSMStorage) getFromSSTable(table *SSTable, key string) (*VectorEntry, bool, error) {
 	// Simplified implementation - would use bloom filter and binary search
 	// in a real implementation
-	
+
 	file, err := os.Open(table.filepath)
 	if err != nil {
 		return nil, false, err
 	}
 	defer file.Close()
-	
+
 	lsm.stats.mutex.Lock()
 	lsm.stats.DiskBytesRead += table.size
 	lsm.stats.mutex.Unlock()
-	
+
 	// For now, just return not found
 	return nil, false, nil
 }
@@ -601,20 +601,20 @@ func (lsm *LSMStorage) writeSSTableHeader(w io.Writer, header SSTableHeader) err
 func (lsm *LSMStorage) writeSSTableEntry(w io.Writer, key string, entry *VectorEntry) (int64, error) {
 	// Simplified entry writing
 	keyBytes := []byte(key)
-	
+
 	// Write key length
 	if err := binary.Write(w, binary.LittleEndian, int32(len(keyBytes))); err != nil {
 		return 0, err
 	}
-	
+
 	// Write key
 	if _, err := w.Write(keyBytes); err != nil {
 		return 0, err
 	}
-	
+
 	// Write entry (simplified)
 	// A real implementation would serialize the entire VectorEntry
-	
+
 	return int64(4 + len(keyBytes)), nil
 }
 
@@ -632,11 +632,11 @@ func NewMemTable() *MemTable {
 func (mt *MemTable) Put(key string, entry *VectorEntry) {
 	mt.mutex.Lock()
 	defer mt.mutex.Unlock()
-	
+
 	if existing, exists := mt.data[key]; exists {
 		mt.size -= existing.Size
 	}
-	
+
 	mt.data[key] = entry
 	mt.size += entry.Size
 }
@@ -645,14 +645,14 @@ func (mt *MemTable) Put(key string, entry *VectorEntry) {
 func (mt *MemTable) Get(key string) (*VectorEntry, bool) {
 	mt.mutex.RLock()
 	defer mt.mutex.RUnlock()
-	
+
 	entry, exists := mt.data[key]
 	return entry, exists
 }
 
 // WriteAheadLog simplified implementation
 type WriteAheadLog struct {
-	file *os.File
+	file  *os.File
 	mutex sync.Mutex
 }
 
@@ -661,14 +661,14 @@ func NewWriteAheadLog(filepath string, syncInterval time.Duration) (*WriteAheadL
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &WriteAheadLog{file: file}, nil
 }
 
 func (wal *WriteAheadLog) WriteEntry(key string, vector Vector, deleted bool) error {
 	wal.mutex.Lock()
 	defer wal.mutex.Unlock()
-	
+
 	// Simplified WAL entry writing
 	entry := fmt.Sprintf("%s:%v:%v\n", key, vector.ID, deleted)
 	_, err := wal.file.WriteString(entry)

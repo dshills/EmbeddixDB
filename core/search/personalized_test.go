@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 	"github.com/dshills/EmbeddixDB/core/ai"
 	"github.com/dshills/EmbeddixDB/core/feedback"
@@ -21,7 +21,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 	memStore := persistence.NewMemoryPersistence()
 	indexFactory := &testIndexFactory{}
 	vectorStore := core.NewVectorStore(memStore, indexFactory)
-	
+
 	// Create test collection
 	ctx := context.Background()
 	collection := core.Collection{
@@ -32,7 +32,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 	}
 	err := vectorStore.CreateCollection(ctx, collection)
 	require.NoError(t, err)
-	
+
 	// Add test vectors
 	testVectors := []core.Vector{
 		{
@@ -69,7 +69,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 			},
 		},
 	}
-	
+
 	// Add topics to vector metadata and store vectors
 	for i, v := range testVectors {
 		// Add topics to vector metadata as comma-separated string
@@ -82,24 +82,24 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 			topics = []string{"nlp", "language", "ai"}
 		}
 		v.Metadata["topics"] = strings.Join(topics, ",")
-		
+
 		err := vectorStore.AddVector(ctx, "test", v)
 		require.NoError(t, err)
 	}
-	
+
 	// Create text engine
 	textEngine := text.NewEnhancedBM25Index()
-	
+
 	// Add documents to text engine
 	for i, v := range testVectors {
 		doc := ai.Document{
 			ID:      v.ID,
 			Content: v.Metadata["title"],
 			Metadata: map[string]interface{}{
-				"source": v.Metadata["source"],
-				"views":  v.Metadata["views"],
-				"rating": v.Metadata["rating"],
-				"topics": []string{"ai", "technology"},
+				"source":   v.Metadata["source"],
+				"views":    v.Metadata["views"],
+				"rating":   v.Metadata["rating"],
+				"topics":   []string{"ai", "technology"},
 				"entities": []string{"AI", "ML"},
 			},
 		}
@@ -110,20 +110,20 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 		} else {
 			doc.Metadata["topics"] = []string{"nlp", "language", "ai"}
 		}
-		
+
 		err := textEngine.Index(ctx, []ai.Document{doc})
 		require.NoError(t, err)
 	}
-	
+
 	// Create mock model manager
 	modelManager := &mockModelManager{}
-	
+
 	// Create feedback manager
 	feedbackConfig := feedback.DefaultManagerConfig()
 	feedbackConfig.EnablePersistence = false
 	feedbackManager, err := feedback.NewManager(feedbackConfig)
 	require.NoError(t, err)
-	
+
 	// Create feedback manager wrapper
 	searchFeedbackManager := &FeedbackManager{
 		Collector:      feedbackManager.Collector,
@@ -133,7 +133,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 		Analyzer:       feedbackManager.Analyzer,
 		CTRTracker:     feedbackManager.CTRTracker,
 	}
-	
+
 	// Create personalized search manager
 	config := PersonalizedSearchConfig{
 		EnablePersonalization: true,
@@ -144,7 +144,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 		MaxResults:            10,
 		MinScore:              0.0,
 	}
-	
+
 	searchManager := NewPersonalizedSearchManager(
 		vectorStore,
 		textEngine,
@@ -152,7 +152,7 @@ func setupTestComponents(t *testing.T) (*PersonalizedSearchManager, *FeedbackMan
 		searchFeedbackManager,
 		config,
 	)
-	
+
 	return searchManager, searchFeedbackManager
 }
 
@@ -212,10 +212,10 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 		userID := "test_user"
 		_, err := feedbackManager.ProfileManager.CreateProfile(ctx, userID)
 		require.NoError(t, err)
-		
+
 		// Set user interests
 		topics := map[string]float64{
-			"deep_learning": 0.9,
+			"deep_learning":    0.9,
 			"machine_learning": 0.5,
 		}
 		err = feedbackManager.ProfileManager.IncrementInterests(ctx, userID, topics, nil)
@@ -234,7 +234,7 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, response.Personalized)
 		assert.Greater(t, len(response.Results), 0)
-		
+
 		// Deep learning doc should rank higher due to user interest
 		foundDeepLearning := false
 		for i, result := range response.Results {
@@ -248,7 +248,7 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 
 	t.Run("SessionAwareSearch", func(t *testing.T) {
 		userID := "session_user"
-		
+
 		// Create session
 		session, err := feedbackManager.SessionManager.CreateSession(ctx, userID, nil)
 		require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 	t.Run("WeightCustomization", func(t *testing.T) {
 		vectorWeight := 0.8
 		textWeight := 0.2
-		
+
 		req := PersonalizedSearchRequest{
 			CollectionID: "test",
 			Query:        "learning",
@@ -300,7 +300,7 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 		response, err := searchManager.Search(ctx, req)
 		assert.NoError(t, err)
 		assert.Greater(t, len(response.Results), 0)
-		
+
 		// Results should be more influenced by vector similarity
 	})
 
@@ -316,7 +316,7 @@ func TestPersonalizedSearchManager_Search(t *testing.T) {
 		response, err := searchManager.Search(ctx, req)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, response.QueryID)
-		
+
 		// Verify query feedback was recorded
 		queryFeedback, err := feedbackManager.Collector.GetQueryFeedback(ctx, response.QueryID)
 		assert.NoError(t, err)
@@ -344,7 +344,7 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 
 		err := searchManager.RecordInteraction(ctx, interaction)
 		assert.NoError(t, err)
-		
+
 		// Verify interaction was recorded
 		filter := feedback.InteractionFilter{
 			UserID: "user1",
@@ -354,7 +354,7 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, interactions, 1)
 		assert.Equal(t, "doc1", interactions[0].DocumentID)
-		
+
 		// Verify CTR was updated
 		if feedbackManager.CTRTracker != nil {
 			metrics, err := feedbackManager.CTRTracker.GetDocumentCTR(ctx, "doc1")
@@ -369,7 +369,7 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 		if err != nil && !strings.Contains(err.Error(), "already exists") {
 			require.NoError(t, err)
 		}
-		
+
 		interaction := &feedback.Interaction{
 			UserID:       "user1",
 			SessionID:    "session1",
@@ -384,10 +384,10 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 
 		err = searchManager.RecordInteraction(ctx, interaction)
 		assert.NoError(t, err)
-		
+
 		// Add a small delay to allow for async processing
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// Verify user interests were updated
 		topics, _, err := feedbackManager.ProfileManager.GetTopInterests(ctx, "user1", 5)
 		assert.NoError(t, err)
@@ -406,7 +406,7 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 		// Create user profile first
 		_, err := feedbackManager.ProfileManager.CreateProfile(ctx, "user2")
 		require.NoError(t, err)
-		
+
 		interaction := &feedback.Interaction{
 			UserID:       "user2",
 			SessionID:    "session2",
@@ -421,10 +421,10 @@ func TestPersonalizedSearchManager_RecordInteraction(t *testing.T) {
 
 		err = searchManager.RecordInteraction(ctx, interaction)
 		assert.NoError(t, err)
-		
+
 		// Add a small delay to allow for async processing
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// High rating should increase user interest
 		topics, _, err := feedbackManager.ProfileManager.GetTopInterests(ctx, "user2", 5)
 		assert.NoError(t, err)
@@ -447,7 +447,7 @@ func TestPersonalizedSearchManager_CTROptimization(t *testing.T) {
 	// Simulate impressions and clicks to build CTR data
 	documents := []string{"doc1", "doc2", "doc3"}
 	clickRates := []float64{0.5, 0.2, 0.8} // doc3 has highest CTR
-	
+
 	for i, docID := range documents {
 		// Record 100 impressions per document across various positions
 		for j := 0; j < 100; j++ {
@@ -462,7 +462,7 @@ func TestPersonalizedSearchManager_CTROptimization(t *testing.T) {
 			}
 			err := feedbackManager.CTRTracker.RecordImpression(ctx, impression)
 			require.NoError(t, err)
-			
+
 			// Record clicks based on CTR - use number of clicks that gives exact CTR
 			clickCount := int(float64(100) * clickRates[i])
 			if j < clickCount {
@@ -491,7 +491,7 @@ func TestPersonalizedSearchManager_CTROptimization(t *testing.T) {
 		optimized, err := searchManager.GetCTROptimizedRanking(ctx, results, "test")
 		assert.NoError(t, err)
 		assert.Len(t, optimized, 3)
-		
+
 		// doc3 should rank first due to highest CTR
 		assert.Equal(t, "doc3", optimized[0].ID)
 		assert.Equal(t, 1, optimized[0].Position)
@@ -503,7 +503,7 @@ func TestPersonalizedSearchManager_CTROptimization(t *testing.T) {
 		assert.Greater(t, report.TotalImpressions, int64(0))
 		assert.Greater(t, report.TotalClicks, int64(0))
 		assert.NotEmpty(t, report.TopDocuments)
-		
+
 		// Find doc3 in top documents
 		found := false
 		for _, doc := range report.TopDocuments {
@@ -596,9 +596,9 @@ type testIndex struct {
 	vectors []core.Vector
 }
 
-func (i *testIndex) Add(vector core.Vector) error { 
+func (i *testIndex) Add(vector core.Vector) error {
 	i.vectors = append(i.vectors, vector)
-	return nil 
+	return nil
 }
 
 func (i *testIndex) Search(query []float32, k int, filter map[string]string) ([]core.SearchResult, error) {
@@ -619,9 +619,9 @@ func (i *testIndex) Search(query []float32, k int, filter map[string]string) ([]
 func (i *testIndex) RangeSearch(query []float32, radius float32, filter map[string]string, limit int) ([]core.SearchResult, error) {
 	return []core.SearchResult{}, nil
 }
-func (i *testIndex) Delete(id string) error { return nil }
-func (i *testIndex) Rebuild() error { return nil }
-func (i *testIndex) Size() int { return 0 }
-func (i *testIndex) Type() string { return "test" }
-func (i *testIndex) Serialize() ([]byte, error) { return []byte{}, nil }
+func (i *testIndex) Delete(id string) error        { return nil }
+func (i *testIndex) Rebuild() error                { return nil }
+func (i *testIndex) Size() int                     { return 0 }
+func (i *testIndex) Type() string                  { return "test" }
+func (i *testIndex) Serialize() ([]byte, error)    { return []byte{}, nil }
 func (i *testIndex) Deserialize(data []byte) error { return nil }

@@ -12,27 +12,27 @@ import (
 
 // DefaultContentAnalyzer implements the ContentAnalyzer interface
 type DefaultContentAnalyzer struct {
-	languageDetector *LanguageDetector
-	entityExtractor  *EntityExtractor
-	topicModeler     *TopicModeler
-	sentimentAnalyzer *SentimentAnalyzer
+	languageDetector   *LanguageDetector
+	entityExtractor    *EntityExtractor
+	topicModeler       *TopicModeler
+	sentimentAnalyzer  *SentimentAnalyzer
 	keyPhraseExtractor *KeyPhraseExtractor
-	mutex            sync.RWMutex
-	stats            *AnalysisStats
+	mutex              sync.RWMutex
+	stats              *AnalysisStats
 }
 
 // AnalysisStats tracks content analysis performance
 type AnalysisStats struct {
-	TotalAnalyses    int64         `json:"total_analyses"`
-	SuccessfulAnalyses int64       `json:"successful_analyses"`
-	FailedAnalyses   int64         `json:"failed_analyses"`
-	AverageLatency   time.Duration `json:"average_latency"`
+	TotalAnalyses       int64         `json:"total_analyses"`
+	SuccessfulAnalyses  int64         `json:"successful_analyses"`
+	FailedAnalyses      int64         `json:"failed_analyses"`
+	AverageLatency      time.Duration `json:"average_latency"`
 	TotalProcessingTime time.Duration `json:"total_processing_time"`
-	LanguageDetections int64       `json:"language_detections"`
-	EntityExtractions int64        `json:"entity_extractions"`
-	TopicAnalyses    int64         `json:"topic_analyses"`
-	SentimentAnalyses int64        `json:"sentiment_analyses"`
-	mutex            sync.RWMutex
+	LanguageDetections  int64         `json:"language_detections"`
+	EntityExtractions   int64         `json:"entity_extractions"`
+	TopicAnalyses       int64         `json:"topic_analyses"`
+	SentimentAnalyses   int64         `json:"sentiment_analyses"`
+	mutex               sync.RWMutex
 }
 
 // NewDefaultContentAnalyzer creates a new content analyzer with default components
@@ -226,7 +226,7 @@ func (a *DefaultContentAnalyzer) calculateReadabilityScore(content string) float
 	avgSyllablesPerWord := float64(syllables) / float64(len(words))
 
 	// Flesch formula: 206.835 - (1.015 × ASL) - (84.6 × ASW)
-	score := 206.835 - (1.015*avgSentenceLength) - (84.6*avgSyllablesPerWord)
+	score := 206.835 - (1.015 * avgSentenceLength) - (84.6 * avgSyllablesPerWord)
 
 	// Normalize to 0-1 range
 	normalizedScore := score / 100.0
@@ -243,7 +243,7 @@ func (a *DefaultContentAnalyzer) splitIntoSentences(content string) []string {
 	// Simple sentence splitting
 	re := regexp.MustCompile(`[.!?]+\s+`)
 	sentences := re.Split(content, -1)
-	
+
 	var result []string
 	for _, sentence := range sentences {
 		trimmed := strings.TrimSpace(sentence)
@@ -251,11 +251,11 @@ func (a *DefaultContentAnalyzer) splitIntoSentences(content string) []string {
 			result = append(result, trimmed)
 		}
 	}
-	
+
 	if len(result) == 0 {
 		return []string{content}
 	}
-	
+
 	return result
 }
 
@@ -277,7 +277,7 @@ func (a *DefaultContentAnalyzer) countSyllables(content string) int {
 func (a *DefaultContentAnalyzer) countWordSyllables(word string) int {
 	word = strings.ToLower(word)
 	word = regexp.MustCompile(`[^a-z]`).ReplaceAllString(word, "")
-	
+
 	if word == "" {
 		return 0
 	}

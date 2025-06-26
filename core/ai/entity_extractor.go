@@ -14,12 +14,12 @@ type EntityExtractor struct {
 
 // EntityPattern defines patterns for extracting specific entity types
 type EntityPattern struct {
-	Label       string
-	Patterns    []*regexp.Regexp
-	Validators  []EntityValidator
-	Priority    int
-	MinLength   int
-	MaxLength   int
+	Label      string
+	Patterns   []*regexp.Regexp
+	Validators []EntityValidator
+	Priority   int
+	MinLength  int
+	MaxLength  int
 }
 
 // EntityValidator is a function that validates if an extracted entity is valid
@@ -47,7 +47,7 @@ func (ee *EntityExtractor) ExtractEntities(ctx context.Context, content string) 
 	// Extract entities for each pattern type
 	for label, pattern := range ee.patterns {
 		foundEntities := ee.extractEntitiesWithPattern(content, label, pattern)
-		
+
 		for _, entity := range foundEntities {
 			// Create a unique key for deduplication
 			key := strings.ToLower(entity.Text) + "|" + entity.Label
@@ -81,7 +81,7 @@ func (ee *EntityExtractor) extractEntitiesWithPattern(content, label string, pat
 		for i, match := range matches {
 			if len(match) > 0 {
 				text := strings.TrimSpace(match[0])
-				
+
 				// Check length constraints
 				if len(text) < pattern.MinLength || (pattern.MaxLength > 0 && len(text) > pattern.MaxLength) {
 					continue
@@ -305,7 +305,7 @@ func (ee *EntityExtractor) isValidPersonName(text string) bool {
 	// Check if it's not a common word
 	commonWords := []string{"the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by"}
 	textLower := strings.ToLower(text)
-	
+
 	for _, word := range commonWords {
 		if textLower == word {
 			return false
@@ -373,7 +373,7 @@ func (ee *EntityExtractor) isValidPhone(text string) bool {
 			digitCount++
 		}
 	}
-	
+
 	// Should have at least 10 digits
 	return digitCount >= 10
 }
@@ -392,7 +392,7 @@ func (ee *EntityExtractor) isValidMoney(text string) bool {
 			break
 		}
 	}
-	
+
 	return hasDigit
 }
 

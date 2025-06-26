@@ -17,14 +17,14 @@ type AlignedVector struct {
 func NewAlignedVector(size int) *AlignedVector {
 	// Allocate aligned memory (64-byte boundary for CPU cache line)
 	data := make([]float32, size+15) // Extra space for alignment
-	
+
 	// Calculate aligned offset
 	ptr := uintptr(unsafe.Pointer(&data[0]))
 	aligned := (ptr + 63) &^ 63 // Align to 64-byte boundary
 	offset := int(aligned-ptr) / int(unsafe.Sizeof(float32(0)))
-	
+
 	alignedSlice := data[offset : offset+size]
-	
+
 	return &AlignedVector{
 		data: &alignedSlice,
 		len:  size,
@@ -60,7 +60,7 @@ func (vp *VectorPool) Get(dimension int) *AlignedVector {
 	vp.mutex.RLock()
 	pool, exists := vp.pools[dimension]
 	vp.mutex.RUnlock()
-	
+
 	if !exists {
 		vp.mutex.Lock()
 		// Double-check pattern
@@ -74,7 +74,7 @@ func (vp *VectorPool) Get(dimension int) *AlignedVector {
 		}
 		vp.mutex.Unlock()
 	}
-	
+
 	return pool.Get().(*AlignedVector)
 }
 
@@ -83,12 +83,12 @@ func (vp *VectorPool) Put(vec *AlignedVector) {
 	if vec == nil {
 		return
 	}
-	
+
 	dimension := vec.len
 	vp.mutex.RLock()
 	pool, exists := vp.pools[dimension]
 	vp.mutex.RUnlock()
-	
+
 	if exists {
 		// Clear the vector data for security
 		data := vec.Data()
@@ -103,7 +103,7 @@ func (vp *VectorPool) Put(vec *AlignedVector) {
 func (vp *VectorPool) Stats() map[int]int {
 	vp.mutex.RLock()
 	defer vp.mutex.RUnlock()
-	
+
 	stats := make(map[int]int)
 	for dimension := range vp.pools {
 		stats[dimension] = 1 // Pool exists
@@ -126,8 +126,8 @@ func PutPooledVector(vec *AlignedVector) {
 
 // VectorBuffer manages a reusable buffer for batch operations
 type VectorBuffer struct {
-	vectors []*AlignedVector
-	pool    *VectorPool
+	vectors   []*AlignedVector
+	pool      *VectorPool
 	dimension int
 	capacity  int
 }
@@ -190,7 +190,7 @@ func (bvp *BatchVectorProcessor) ProcessBatch(vectors []Vector, fn func([]Vector
 		if end > len(vectors) {
 			end = len(vectors)
 		}
-		
+
 		batch := vectors[i:end]
 		if err := fn(batch); err != nil {
 			return err
@@ -209,7 +209,7 @@ type MemoryAlignedVector struct {
 func NewMemoryAlignedVector(vec Vector) *MemoryAlignedVector {
 	aligned := GetPooledVector(len(vec.Values))
 	copy(aligned.Data(), vec.Values)
-	
+
 	return &MemoryAlignedVector{
 		Vector:  vec,
 		aligned: aligned,

@@ -19,12 +19,12 @@ import (
 func main() {
 	// Parse command line flags
 	var (
-		host         = flag.String("host", "0.0.0.0", "Host to listen on")
-		port         = flag.Int("port", 8080, "Port to listen on")
-		dbType       = flag.String("db", "bolt", "Database type: memory, bolt, badger")
-		dbPath       = flag.String("path", "data/embeddix.db", "Database path")
-		enableWAL    = flag.Bool("wal", false, "Enable Write-Ahead Logging")
-		walPath      = flag.String("wal-path", "data/wal", "WAL directory path")
+		host      = flag.String("host", "0.0.0.0", "Host to listen on")
+		port      = flag.Int("port", 8080, "Port to listen on")
+		dbType    = flag.String("db", "bolt", "Database type: memory, bolt, badger")
+		dbPath    = flag.String("path", "data/embeddix.db", "Database path")
+		enableWAL = flag.Bool("wal", false, "Enable Write-Ahead Logging")
+		walPath   = flag.String("wal-path", "data/wal", "WAL directory path")
 	)
 	flag.Parse()
 

@@ -52,7 +52,7 @@ func NewBenchmark(store core.VectorStore, config BenchmarkConfig) *Benchmark {
 // RunAll runs all benchmarks
 func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]BenchmarkResult, error) {
 	var results []BenchmarkResult
-	
+
 	// Get collection info for recreation
 	collections, _ := b.store.ListCollections(ctx)
 	var collection core.Collection
@@ -62,10 +62,10 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 			break
 		}
 	}
-	
+
 	// Generate test vectors
 	vectors := b.generateVectors(b.config.NumVectors)
-	
+
 	// Benchmark individual inserts
 	fmt.Printf("Running individual insert benchmark (%d vectors)...\n", b.config.NumVectors)
 	insertResult, err := b.benchmarkInserts(ctx, collectionName, vectors)
@@ -73,11 +73,11 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, insertResult)
-	
+
 	// Clean and recreate collection for batch test
 	b.store.DeleteCollection(ctx, collectionName)
 	b.store.CreateCollection(ctx, collection)
-	
+
 	// Benchmark batch inserts
 	fmt.Printf("Running batch insert benchmark (batch size: %d)...\n", b.config.BatchSize)
 	batchResult, err := b.benchmarkBatchInserts(ctx, collectionName, vectors)
@@ -85,7 +85,7 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, batchResult)
-	
+
 	// Benchmark searches
 	fmt.Printf("Running search benchmark (%d queries)...\n", b.config.NumQueries)
 	searchResult, err := b.benchmarkSearches(ctx, collectionName)
@@ -93,7 +93,7 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, searchResult)
-	
+
 	// Benchmark concurrent searches
 	fmt.Printf("Running concurrent search benchmark (parallelism: %d)...\n", b.config.Parallelism)
 	concurrentResult, err := b.benchmarkConcurrentSearches(ctx, collectionName)
@@ -101,7 +101,7 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, concurrentResult)
-	
+
 	// Benchmark gets
 	fmt.Printf("Running get vector benchmark...\n")
 	getResult, err := b.benchmarkGets(ctx, collectionName, vectors[:min(1000, len(vectors))])
@@ -109,7 +109,7 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, getResult)
-	
+
 	// Benchmark updates
 	fmt.Printf("Running update benchmark...\n")
 	updateResult, err := b.benchmarkUpdates(ctx, collectionName, vectors[:min(100, len(vectors))])
@@ -117,7 +117,7 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, updateResult)
-	
+
 	// Benchmark range searches
 	fmt.Printf("Running range search benchmark...\n")
 	rangeResult, err := b.benchmarkRangeSearch(ctx, collectionName)
@@ -125,14 +125,14 @@ func (b *Benchmark) RunAll(ctx context.Context, collectionName string) ([]Benchm
 		return nil, err
 	}
 	results = append(results, rangeResult)
-	
+
 	return results, nil
 }
 
 // benchmarkInserts measures individual insert performance
 func (b *Benchmark) benchmarkInserts(ctx context.Context, collection string, vectors []core.Vector) (BenchmarkResult, error) {
 	latencies := make([]time.Duration, 0, len(vectors))
-	
+
 	start := time.Now()
 	for _, vec := range vectors {
 		opStart := time.Now()
@@ -142,7 +142,7 @@ func (b *Benchmark) benchmarkInserts(ctx context.Context, collection string, vec
 		latencies = append(latencies, time.Since(opStart))
 	}
 	totalTime := time.Since(start)
-	
+
 	return b.calculateResult("Individual Insert", totalTime, len(vectors), latencies), nil
 }
 
@@ -150,12 +150,12 @@ func (b *Benchmark) benchmarkInserts(ctx context.Context, collection string, vec
 func (b *Benchmark) benchmarkBatchInserts(ctx context.Context, collection string, vectors []core.Vector) (BenchmarkResult, error) {
 	latencies := make([]time.Duration, 0, len(vectors)/b.config.BatchSize+1)
 	batches := 0
-	
+
 	start := time.Now()
 	for i := 0; i < len(vectors); i += b.config.BatchSize {
 		end := min(i+b.config.BatchSize, len(vectors))
 		batch := vectors[i:end]
-		
+
 		opStart := time.Now()
 		if err := b.store.AddVectorsBatch(ctx, collection, batch); err != nil {
 			return BenchmarkResult{}, fmt.Errorf("batch insert failed: %w", err)
@@ -164,11 +164,11 @@ func (b *Benchmark) benchmarkBatchInserts(ctx context.Context, collection string
 		batches++
 	}
 	totalTime := time.Since(start)
-	
+
 	result := b.calculateResult("Batch Insert", totalTime, batches, latencies)
 	result.OperationCount = len(vectors) // Report total vectors inserted
 	result.Throughput = float64(len(vectors)) / totalTime.Seconds()
-	
+
 	return result, nil
 }
 
@@ -176,7 +176,7 @@ func (b *Benchmark) benchmarkBatchInserts(ctx context.Context, collection string
 func (b *Benchmark) benchmarkSearches(ctx context.Context, collection string) (BenchmarkResult, error) {
 	queries := b.generateVectors(b.config.NumQueries)
 	latencies := make([]time.Duration, 0, len(queries))
-	
+
 	start := time.Now()
 	for _, query := range queries {
 		searchReq := core.SearchRequest{
@@ -184,7 +184,7 @@ func (b *Benchmark) benchmarkSearches(ctx context.Context, collection string) (B
 			TopK:           b.config.TopK,
 			IncludeVectors: false,
 		}
-		
+
 		opStart := time.Now()
 		_, err := b.store.Search(ctx, collection, searchReq)
 		if err != nil {
@@ -193,7 +193,7 @@ func (b *Benchmark) benchmarkSearches(ctx context.Context, collection string) (B
 		latencies = append(latencies, time.Since(opStart))
 	}
 	totalTime := time.Since(start)
-	
+
 	return b.calculateResult("Search", totalTime, len(queries), latencies), nil
 }
 
@@ -203,25 +203,25 @@ func (b *Benchmark) benchmarkConcurrentSearches(ctx context.Context, collection 
 	latencies := make([]time.Duration, len(queries))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	
+
 	// Create a channel to limit concurrency
 	sem := make(chan struct{}, b.config.Parallelism)
-	
+
 	start := time.Now()
 	for i, query := range queries {
 		wg.Add(1)
 		go func(idx int, q core.Vector) {
 			defer wg.Done()
-			
-			sem <- struct{}{} // Acquire
+
+			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
-			
+
 			searchReq := core.SearchRequest{
 				Query:          q.Values,
 				TopK:           b.config.TopK,
 				IncludeVectors: false,
 			}
-			
+
 			opStart := time.Now()
 			_, err := b.store.Search(ctx, collection, searchReq)
 			if err == nil {
@@ -231,10 +231,10 @@ func (b *Benchmark) benchmarkConcurrentSearches(ctx context.Context, collection 
 			}
 		}(i, query)
 	}
-	
+
 	wg.Wait()
 	totalTime := time.Since(start)
-	
+
 	// Filter out zero latencies (from errors)
 	validLatencies := make([]time.Duration, 0, len(latencies))
 	for _, lat := range latencies {
@@ -242,14 +242,14 @@ func (b *Benchmark) benchmarkConcurrentSearches(ctx context.Context, collection 
 			validLatencies = append(validLatencies, lat)
 		}
 	}
-	
+
 	return b.calculateResult("Concurrent Search", totalTime, len(validLatencies), validLatencies), nil
 }
 
 // benchmarkGets measures get performance
 func (b *Benchmark) benchmarkGets(ctx context.Context, collection string, vectors []core.Vector) (BenchmarkResult, error) {
 	latencies := make([]time.Duration, 0, len(vectors))
-	
+
 	start := time.Now()
 	for _, vec := range vectors {
 		opStart := time.Now()
@@ -260,14 +260,14 @@ func (b *Benchmark) benchmarkGets(ctx context.Context, collection string, vector
 		latencies = append(latencies, time.Since(opStart))
 	}
 	totalTime := time.Since(start)
-	
+
 	return b.calculateResult("Get Vector", totalTime, len(vectors), latencies), nil
 }
 
 // benchmarkUpdates measures update performance
 func (b *Benchmark) benchmarkUpdates(ctx context.Context, collection string, vectors []core.Vector) (BenchmarkResult, error) {
 	latencies := make([]time.Duration, 0, len(vectors))
-	
+
 	// Modify vectors slightly for update
 	for i := range vectors {
 		for j := range vectors[i].Values {
@@ -275,7 +275,7 @@ func (b *Benchmark) benchmarkUpdates(ctx context.Context, collection string, vec
 		}
 		vectors[i].Metadata["updated"] = "true"
 	}
-	
+
 	start := time.Now()
 	for _, vec := range vectors {
 		opStart := time.Now()
@@ -285,7 +285,7 @@ func (b *Benchmark) benchmarkUpdates(ctx context.Context, collection string, vec
 		latencies = append(latencies, time.Since(opStart))
 	}
 	totalTime := time.Since(start)
-	
+
 	return b.calculateResult("Update Vector", totalTime, len(vectors), latencies), nil
 }
 
@@ -294,10 +294,10 @@ func (b *Benchmark) benchmarkRangeSearch(ctx context.Context, collection string)
 	queries := b.generateVectors(b.config.NumQueries)
 	latencies := make([]time.Duration, 0, len(queries))
 	totalFound := 0
-	
+
 	// Use a moderate radius for benchmarking
 	radius := float32(0.5)
-	
+
 	start := time.Now()
 	for _, query := range queries {
 		searchReq := core.RangeSearchRequest{
@@ -305,7 +305,7 @@ func (b *Benchmark) benchmarkRangeSearch(ctx context.Context, collection string)
 			Radius:         radius,
 			IncludeVectors: false,
 		}
-		
+
 		opStart := time.Now()
 		result, err := b.store.RangeSearch(ctx, collection, searchReq)
 		if err != nil {
@@ -315,13 +315,13 @@ func (b *Benchmark) benchmarkRangeSearch(ctx context.Context, collection string)
 		totalFound += result.Count
 	}
 	totalTime := time.Since(start)
-	
+
 	result := b.calculateResult("Range Search (r=0.5)", totalTime, len(queries), latencies)
-	
+
 	// Log average results found
 	avgFound := float64(totalFound) / float64(len(queries))
 	fmt.Printf("   Average vectors found per query: %.2f\n", avgFound)
-	
+
 	return result, nil
 }
 
@@ -333,7 +333,7 @@ func (b *Benchmark) generateVectors(count int) []core.Vector {
 		for j := 0; j < b.config.VectorDimension; j++ {
 			values[j] = rand.Float32()
 		}
-		
+
 		vectors[i] = core.Vector{
 			ID:     fmt.Sprintf("vec_%d", i),
 			Values: values,
@@ -351,28 +351,28 @@ func (b *Benchmark) calculateResult(operation string, totalTime time.Duration, c
 	if len(latencies) == 0 {
 		return BenchmarkResult{Operation: operation}
 	}
-	
+
 	// Sort latencies for percentile calculation
 	sortedLatencies := make([]time.Duration, len(latencies))
 	copy(sortedLatencies, latencies)
 	sortDurations(sortedLatencies)
-	
+
 	// Calculate statistics
 	var sum time.Duration
 	min := sortedLatencies[0]
 	max := sortedLatencies[len(sortedLatencies)-1]
-	
+
 	for _, lat := range latencies {
 		sum += lat
 	}
-	
+
 	avg := sum / time.Duration(len(latencies))
 	p50 := sortedLatencies[len(sortedLatencies)*50/100]
 	p95 := sortedLatencies[len(sortedLatencies)*95/100]
 	p99 := sortedLatencies[len(sortedLatencies)*99/100]
-	
+
 	throughput := float64(count) / totalTime.Seconds()
-	
+
 	return BenchmarkResult{
 		Operation:      operation,
 		TotalTime:      totalTime,
@@ -409,10 +409,10 @@ func min(a, b int) int {
 // PrintResults prints benchmark results in a formatted table
 func PrintResults(results []BenchmarkResult) {
 	fmt.Println("\n=== Benchmark Results ===")
-	fmt.Printf("%-20s %10s %10s %10s %10s %10s %10s %12s\n", 
+	fmt.Printf("%-20s %10s %10s %10s %10s %10s %10s %12s\n",
 		"Operation", "Count", "Avg", "Min", "Max", "P95", "P99", "Throughput")
 	fmt.Println(strings.Repeat("-", 102))
-	
+
 	for _, r := range results {
 		fmt.Printf("%-20s %10d %10s %10s %10s %10s %10s %12.2f/s\n",
 			r.Operation,

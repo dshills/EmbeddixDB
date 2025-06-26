@@ -12,24 +12,24 @@ import (
 
 // LLMWorkload represents different types of LLM usage patterns
 type LLMWorkload struct {
-	Name            string
-	AgentCount      int
+	Name             string
+	AgentCount       int
 	QueriesPerSecond float64
-	InsertionRate   float64
-	VectorDimension int
-	CollectionSize  int
-	QueryPatterns   []QueryPattern
-	Duration        time.Duration
+	InsertionRate    float64
+	VectorDimension  int
+	CollectionSize   int
+	QueryPatterns    []QueryPattern
+	Duration         time.Duration
 }
 
 // QueryPattern defines specific query characteristics
 type QueryPattern struct {
 	Type        QueryType
-	Frequency   float64  // Percentage of total queries
+	Frequency   float64 // Percentage of total queries
 	Complexity  ComplexityLevel
-	K           int      // Number of results requested
-	HasMetadata bool     // Whether query includes metadata filters
-	CacheHit    float64  // Expected cache hit rate (0.0-1.0)
+	K           int     // Number of results requested
+	HasMetadata bool    // Whether query includes metadata filters
+	CacheHit    float64 // Expected cache hit rate (0.0-1.0)
 }
 
 type QueryType string
@@ -37,8 +37,8 @@ type QueryType string
 const (
 	QueryTypeAgentMemory    QueryType = "agent_memory"    // High-frequency, low-latency
 	QueryTypeDocumentSearch QueryType = "document_search" // Semantic document retrieval
-	QueryTypePersonalized  QueryType = "personalized"    // User-specific results
-	QueryTypeBatch         QueryType = "batch"           // Bulk processing
+	QueryTypePersonalized   QueryType = "personalized"    // User-specific results
+	QueryTypeBatch          QueryType = "batch"           // Bulk processing
 )
 
 type ComplexityLevel string
@@ -52,13 +52,13 @@ const (
 // LLMWorkloadSuite provides predefined workload patterns for testing
 var LLMWorkloadSuite = []LLMWorkload{
 	{
-		Name:            "Single Agent Intensive",
-		AgentCount:      1,
+		Name:             "Single Agent Intensive",
+		AgentCount:       1,
 		QueriesPerSecond: 50.0,
-		InsertionRate:   10.0,
-		VectorDimension: 768,
-		CollectionSize:  100000,
-		Duration:        time.Minute * 5,
+		InsertionRate:    10.0,
+		VectorDimension:  768,
+		CollectionSize:   100000,
+		Duration:         time.Minute * 5,
 		QueryPatterns: []QueryPattern{
 			{Type: QueryTypeAgentMemory, Frequency: 0.7, Complexity: ComplexityLow, K: 5, HasMetadata: false, CacheHit: 0.3},
 			{Type: QueryTypeDocumentSearch, Frequency: 0.2, Complexity: ComplexityMedium, K: 10, HasMetadata: true, CacheHit: 0.1},
@@ -66,13 +66,13 @@ var LLMWorkloadSuite = []LLMWorkload{
 		},
 	},
 	{
-		Name:            "Multi Agent Concurrent",
-		AgentCount:      10,
+		Name:             "Multi Agent Concurrent",
+		AgentCount:       10,
 		QueriesPerSecond: 20.0, // Per agent
-		InsertionRate:   5.0,   // Per agent
-		VectorDimension: 1536,
-		CollectionSize:  500000,
-		Duration:        time.Minute * 10,
+		InsertionRate:    5.0,  // Per agent
+		VectorDimension:  1536,
+		CollectionSize:   500000,
+		Duration:         time.Minute * 10,
 		QueryPatterns: []QueryPattern{
 			{Type: QueryTypeAgentMemory, Frequency: 0.5, Complexity: ComplexityLow, K: 3, HasMetadata: false, CacheHit: 0.4},
 			{Type: QueryTypeDocumentSearch, Frequency: 0.3, Complexity: ComplexityMedium, K: 15, HasMetadata: true, CacheHit: 0.2},
@@ -80,26 +80,26 @@ var LLMWorkloadSuite = []LLMWorkload{
 		},
 	},
 	{
-		Name:            "Batch Processing",
-		AgentCount:      1,
+		Name:             "Batch Processing",
+		AgentCount:       1,
 		QueriesPerSecond: 5.0,
-		InsertionRate:   100.0, // High insertion rate
-		VectorDimension: 768,
-		CollectionSize:  1000000,
-		Duration:        time.Minute * 15,
+		InsertionRate:    100.0, // High insertion rate
+		VectorDimension:  768,
+		CollectionSize:   1000000,
+		Duration:         time.Minute * 15,
 		QueryPatterns: []QueryPattern{
 			{Type: QueryTypeBatch, Frequency: 0.8, Complexity: ComplexityMedium, K: 50, HasMetadata: true, CacheHit: 0.05},
 			{Type: QueryTypeDocumentSearch, Frequency: 0.2, Complexity: ComplexityLow, K: 10, HasMetadata: false, CacheHit: 0.3},
 		},
 	},
 	{
-		Name:            "Mixed Workload Realistic",
-		AgentCount:      5,
+		Name:             "Mixed Workload Realistic",
+		AgentCount:       5,
 		QueriesPerSecond: 30.0,
-		InsertionRate:   8.0,
-		VectorDimension: 768,
-		CollectionSize:  250000,
-		Duration:        time.Minute * 20,
+		InsertionRate:    8.0,
+		VectorDimension:  768,
+		CollectionSize:   250000,
+		Duration:         time.Minute * 20,
 		QueryPatterns: []QueryPattern{
 			{Type: QueryTypeAgentMemory, Frequency: 0.4, Complexity: ComplexityLow, K: 5, HasMetadata: false, CacheHit: 0.5},
 			{Type: QueryTypeDocumentSearch, Frequency: 0.35, Complexity: ComplexityMedium, K: 12, HasMetadata: true, CacheHit: 0.25},
@@ -121,17 +121,17 @@ type WorkloadExecutor struct {
 // WorkloadMetrics tracks performance during workload execution
 type WorkloadMetrics struct {
 	mu                    sync.RWMutex
-	StartTime            time.Time
-	EndTime              time.Time
-	TotalQueries         int64
-	TotalInsertions      int64
-	QueryLatencies       []time.Duration
-	InsertionLatencies   []time.Duration
-	Errors               int64
-	CacheHits            int64
-	CacheMisses          int64
-	MemoryUsageSamples   []int64
-	CPUUsageSamples      []float64
+	StartTime             time.Time
+	EndTime               time.Time
+	TotalQueries          int64
+	TotalInsertions       int64
+	QueryLatencies        []time.Duration
+	InsertionLatencies    []time.Duration
+	Errors                int64
+	CacheHits             int64
+	CacheMisses           int64
+	MemoryUsageSamples    []int64
+	CPUUsageSamples       []float64
 	GoroutineCountSamples []int
 }
 
@@ -149,7 +149,7 @@ func NewWorkloadExecutor(vectorStore core.VectorStore) *WorkloadExecutor {
 // ExecuteWorkload runs a specific LLM workload and measures performance
 func (we *WorkloadExecutor) ExecuteWorkload(workload LLMWorkload) (*WorkloadResults, error) {
 	we.metrics.StartTime = time.Now()
-	
+
 	// Create collection for the workload
 	collection := core.Collection{
 		Name:      fmt.Sprintf("workload_%s_%d", workload.Name, time.Now().Unix()),
@@ -157,35 +157,35 @@ func (we *WorkloadExecutor) ExecuteWorkload(workload LLMWorkload) (*WorkloadResu
 		Distance:  string(core.DistanceCosine),
 		IndexType: "flat", // Default to flat index for benchmarking
 	}
-	
+
 	if err := we.vectorStore.CreateCollection(we.ctx, collection); err != nil {
 		return nil, fmt.Errorf("failed to create collection: %w", err)
 	}
-	
+
 	// Populate initial data
 	if err := we.populateInitialData(collection.Name, workload); err != nil {
 		return nil, fmt.Errorf("failed to populate initial data: %w", err)
 	}
-	
+
 	// Start monitoring goroutines
 	we.startMonitoring()
-	
+
 	// Execute workload with multiple agents
 	for agentID := 0; agentID < workload.AgentCount; agentID++ {
 		we.wg.Add(1)
 		go we.runAgent(agentID, collection.Name, workload)
 	}
-	
+
 	// Wait for workload completion
 	workloadCtx, workloadCancel := context.WithTimeout(we.ctx, workload.Duration)
 	defer workloadCancel()
-	
+
 	<-workloadCtx.Done()
 	we.cancel() // Signal all agents to stop
 	we.wg.Wait()
-	
+
 	we.metrics.EndTime = time.Now()
-	
+
 	return we.generateResults(workload), nil
 }
 
@@ -193,7 +193,7 @@ func (we *WorkloadExecutor) ExecuteWorkload(workload LLMWorkload) (*WorkloadResu
 func (we *WorkloadExecutor) populateInitialData(collectionName string, workload LLMWorkload) error {
 	batchSize := 1000
 	totalBatches := workload.CollectionSize / batchSize
-	
+
 	for batch := 0; batch < totalBatches; batch++ {
 		vectors := make([]core.Vector, batchSize)
 		for i := 0; i < batchSize; i++ {
@@ -207,24 +207,24 @@ func (we *WorkloadExecutor) populateInitialData(collectionName string, workload 
 				},
 			}
 		}
-		
+
 		if err := we.vectorStore.AddVectorsBatch(we.ctx, collectionName, vectors); err != nil {
 			return fmt.Errorf("failed to insert batch %d: %w", batch, err)
 		}
 	}
-	
+
 	return nil
 }
 
 // runAgent simulates a single agent's behavior
 func (we *WorkloadExecutor) runAgent(agentID int, collectionName string, workload LLMWorkload) {
 	defer we.wg.Done()
-	
+
 	queryTicker := time.NewTicker(time.Duration(float64(time.Second) / workload.QueriesPerSecond))
 	insertTicker := time.NewTicker(time.Duration(float64(time.Second) / workload.InsertionRate))
 	defer queryTicker.Stop()
 	defer insertTicker.Stop()
-	
+
 	for {
 		select {
 		case <-we.ctx.Done():
@@ -240,40 +240,40 @@ func (we *WorkloadExecutor) runAgent(agentID int, collectionName string, workloa
 // executeQuery performs a single query operation
 func (we *WorkloadExecutor) executeQuery(agentID int, collectionName string, workload LLMWorkload) {
 	start := time.Now()
-	
+
 	// Select query pattern based on frequency distribution
 	pattern := we.selectQueryPattern(workload.QueryPatterns)
-	
+
 	// Generate query vector
 	queryVector := generateRandomVector(workload.VectorDimension)
-	
+
 	// Build query request
 	request := core.SearchRequest{
-		Query:  queryVector,
-		TopK:   pattern.K,
+		Query: queryVector,
+		TopK:  pattern.K,
 	}
-	
+
 	// Add metadata filters for complex queries
 	if pattern.HasMetadata {
 		request.Filter = map[string]string{
 			"type": "document",
 		}
 	}
-	
+
 	// Execute query
 	_, err := we.vectorStore.Search(we.ctx, collectionName, request)
-	
+
 	latency := time.Since(start)
-	
+
 	// Record metrics
 	we.metrics.mu.Lock()
 	we.metrics.TotalQueries++
 	we.metrics.QueryLatencies = append(we.metrics.QueryLatencies, latency)
-	
+
 	if err != nil {
 		we.metrics.Errors++
 	}
-	
+
 	// Simulate cache hit/miss based on pattern
 	if rand.Float64() < pattern.CacheHit {
 		we.metrics.CacheHits++
@@ -286,7 +286,7 @@ func (we *WorkloadExecutor) executeQuery(agentID int, collectionName string, wor
 // executeInsertion performs a single insertion operation
 func (we *WorkloadExecutor) executeInsertion(agentID int, collectionName string, workload LLMWorkload) {
 	start := time.Now()
-	
+
 	vector := core.Vector{
 		ID:     fmt.Sprintf("agent_%d_%d", agentID, time.Now().UnixNano()),
 		Values: generateRandomVector(workload.VectorDimension),
@@ -296,16 +296,16 @@ func (we *WorkloadExecutor) executeInsertion(agentID int, collectionName string,
 			"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
 		},
 	}
-	
+
 	err := we.vectorStore.AddVector(we.ctx, collectionName, vector)
-	
+
 	latency := time.Since(start)
-	
+
 	// Record metrics
 	we.metrics.mu.Lock()
 	we.metrics.TotalInsertions++
 	we.metrics.InsertionLatencies = append(we.metrics.InsertionLatencies, latency)
-	
+
 	if err != nil {
 		we.metrics.Errors++
 	}
@@ -316,14 +316,14 @@ func (we *WorkloadExecutor) executeInsertion(agentID int, collectionName string,
 func (we *WorkloadExecutor) selectQueryPattern(patterns []QueryPattern) QueryPattern {
 	r := rand.Float64()
 	cumulative := 0.0
-	
+
 	for _, pattern := range patterns {
 		cumulative += pattern.Frequency
 		if r <= cumulative {
 			return pattern
 		}
 	}
-	
+
 	// Fallback to first pattern
 	return patterns[0]
 }
@@ -342,7 +342,7 @@ func (we *WorkloadExecutor) startMonitoring() {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-we.ctx.Done():
@@ -359,30 +359,30 @@ func (we *WorkloadExecutor) collectSystemMetrics() {
 	// This would integrate with actual system monitoring
 	// For now, we'll simulate the data collection
 	we.metrics.mu.Lock()
-	we.metrics.MemoryUsageSamples = append(we.metrics.MemoryUsageSamples, 0) // TODO: Actual memory usage
-	we.metrics.CPUUsageSamples = append(we.metrics.CPUUsageSamples, 0.0)     // TODO: Actual CPU usage
+	we.metrics.MemoryUsageSamples = append(we.metrics.MemoryUsageSamples, 0)       // TODO: Actual memory usage
+	we.metrics.CPUUsageSamples = append(we.metrics.CPUUsageSamples, 0.0)           // TODO: Actual CPU usage
 	we.metrics.GoroutineCountSamples = append(we.metrics.GoroutineCountSamples, 0) // TODO: Actual goroutine count
 	we.metrics.mu.Unlock()
 }
 
 // WorkloadResults contains the performance results from a workload execution
 type WorkloadResults struct {
-	WorkloadName       string
-	Duration           time.Duration
-	TotalQueries       int64
-	TotalInsertions    int64
-	QueryThroughput    float64 // Queries per second
+	WorkloadName        string
+	Duration            time.Duration
+	TotalQueries        int64
+	TotalInsertions     int64
+	QueryThroughput     float64 // Queries per second
 	InsertionThroughput float64 // Insertions per second
-	LatencyPercentiles LatencyStats
-	ErrorRate          float64
-	CacheHitRate       float64
-	ResourceUsage      ResourceStats
+	LatencyPercentiles  LatencyStats
+	ErrorRate           float64
+	CacheHitRate        float64
+	ResourceUsage       ResourceStats
 }
 
 type LatencyStats struct {
-	QueryP50    time.Duration
-	QueryP95    time.Duration
-	QueryP99    time.Duration
+	QueryP50     time.Duration
+	QueryP95     time.Duration
+	QueryP99     time.Duration
 	InsertionP50 time.Duration
 	InsertionP95 time.Duration
 	InsertionP99 time.Duration
@@ -401,29 +401,29 @@ type ResourceStats struct {
 func (we *WorkloadExecutor) generateResults(workload LLMWorkload) *WorkloadResults {
 	we.metrics.mu.RLock()
 	defer we.metrics.mu.RUnlock()
-	
+
 	duration := we.metrics.EndTime.Sub(we.metrics.StartTime)
-	
+
 	results := &WorkloadResults{
 		WorkloadName:        workload.Name,
-		Duration:           duration,
-		TotalQueries:       we.metrics.TotalQueries,
-		TotalInsertions:    we.metrics.TotalInsertions,
-		QueryThroughput:    float64(we.metrics.TotalQueries) / duration.Seconds(),
+		Duration:            duration,
+		TotalQueries:        we.metrics.TotalQueries,
+		TotalInsertions:     we.metrics.TotalInsertions,
+		QueryThroughput:     float64(we.metrics.TotalQueries) / duration.Seconds(),
 		InsertionThroughput: float64(we.metrics.TotalInsertions) / duration.Seconds(),
-		ErrorRate:          float64(we.metrics.Errors) / float64(we.metrics.TotalQueries + we.metrics.TotalInsertions),
-		CacheHitRate:       float64(we.metrics.CacheHits) / float64(we.metrics.CacheHits + we.metrics.CacheMisses),
+		ErrorRate:           float64(we.metrics.Errors) / float64(we.metrics.TotalQueries+we.metrics.TotalInsertions),
+		CacheHitRate:        float64(we.metrics.CacheHits) / float64(we.metrics.CacheHits+we.metrics.CacheMisses),
 	}
-	
+
 	// Calculate latency percentiles
 	results.LatencyPercentiles = calculateLatencyPercentiles(
 		we.metrics.QueryLatencies,
 		we.metrics.InsertionLatencies,
 	)
-	
+
 	// Calculate resource usage statistics
 	results.ResourceUsage = calculateResourceStats(we.metrics)
-	
+
 	return results
 }
 

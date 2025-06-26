@@ -25,7 +25,7 @@ func TestBenchmark(t *testing.T) {
 		IndexType: "flat",
 		Distance:  "cosine",
 	}
-	
+
 	err := vectorStore.CreateCollection(ctx, collection)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
@@ -66,9 +66,9 @@ func TestBenchmark(t *testing.T) {
 	}
 
 	for _, result := range results {
-		t.Logf("%s: %d ops in %v (%.2f ops/sec)", 
-			result.Operation, 
-			result.OperationCount, 
+		t.Logf("%s: %d ops in %v (%.2f ops/sec)",
+			result.Operation,
+			result.OperationCount,
 			result.TotalTime,
 			result.Throughput)
 
@@ -82,7 +82,7 @@ func TestBenchmark(t *testing.T) {
 
 		if expected, ok := expectedOps[result.Operation]; ok {
 			if result.OperationCount != expected {
-				t.Errorf("%s: expected %d operations, got %d", 
+				t.Errorf("%s: expected %d operations, got %d",
 					result.Operation, expected, result.OperationCount)
 			}
 		}
@@ -133,7 +133,7 @@ func TestSortDurations(t *testing.T) {
 	// Check sorted order
 	for i := 1; i < len(durations); i++ {
 		if durations[i] < durations[i-1] {
-			t.Errorf("Durations not sorted at index %d: %v < %v", 
+			t.Errorf("Durations not sorted at index %d: %v < %v",
 				i, durations[i], durations[i-1])
 		}
 	}
@@ -153,9 +153,8 @@ func TestFormatDuration(t *testing.T) {
 	for _, test := range tests {
 		result := formatDuration(test.duration)
 		if result != test.expected {
-			t.Errorf("formatDuration(%v) = %s, expected %s", 
+			t.Errorf("formatDuration(%v) = %s, expected %s",
 				test.duration, result, test.expected)
 		}
 	}
 }
-

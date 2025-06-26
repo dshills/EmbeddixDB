@@ -18,16 +18,16 @@ import (
 func main() {
 	// Parse command line flags
 	var (
-		dbType          = flag.String("db", "memory", "Database type: memory, bolt, badger")
-		dbPath          = flag.String("path", "data/benchmark.db", "Database path")
-		vectorDim       = flag.Int("dim", 128, "Vector dimension")
-		numVectors      = flag.Int("vectors", 10000, "Number of vectors to test")
-		numQueries      = flag.Int("queries", 1000, "Number of search queries")
-		topK            = flag.Int("topk", 10, "Top K results for search")
-		parallelism     = flag.Int("parallel", 10, "Parallelism for concurrent tests")
-		batchSize       = flag.Int("batch", 100, "Batch size for batch operations")
-		indexType       = flag.String("index", "flat", "Index type: flat, hnsw")
-		hnswComparison  = flag.Bool("compare", false, "Compare flat vs HNSW performance")
+		dbType         = flag.String("db", "memory", "Database type: memory, bolt, badger")
+		dbPath         = flag.String("path", "data/benchmark.db", "Database path")
+		vectorDim      = flag.Int("dim", 128, "Vector dimension")
+		numVectors     = flag.Int("vectors", 10000, "Number of vectors to test")
+		numQueries     = flag.Int("queries", 1000, "Number of search queries")
+		topK           = flag.Int("topk", 10, "Top K results for search")
+		parallelism    = flag.Int("parallel", 10, "Parallelism for concurrent tests")
+		batchSize      = flag.Int("batch", 100, "Batch size for batch operations")
+		indexType      = flag.String("index", "flat", "Index type: flat, hnsw")
+		hnswComparison = flag.Bool("compare", false, "Compare flat vs HNSW performance")
 	)
 	flag.Parse()
 
@@ -163,4 +163,3 @@ func runBenchmark(dbType, indexType string, vectorDim, numVectors, numQueries, t
 	runtime.ReadMemStats(&m)
 	fmt.Printf("Memory usage: %.2f MB\n", float64(m.Alloc)/1024/1024)
 }
-

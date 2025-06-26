@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dshills/EmbeddixDB/core/cache"
 	"github.com/dshills/EmbeddixDB/core/performance"
 	"github.com/dshills/EmbeddixDB/core/query"
 )
@@ -18,6 +19,7 @@ type OptimizedVectorStore struct {
 	progressiveExecutor *query.ProgressiveExecutor
 	streamingExecutor   *query.StreamingExecutor
 	resourceManager     *query.ResourceManager
+	cacheManager        *cache.MultiLevelCacheManager
 	config              OptimizationConfig
 	mu                  sync.RWMutex
 }
@@ -28,10 +30,12 @@ type OptimizationConfig struct {
 	EnableProgressiveSearch bool
 	EnableStreamingResults  bool
 	EnableQueryPlanCaching  bool
+	EnableMultiLevelCache   bool
 	MaxConcurrentQueries    int
 	MaxMemoryBytes          int64
 	CacheSizeMB             int
 	ParallelWorkers         int
+	CacheConfig             cache.CacheManagerConfig
 }
 
 // DefaultOptimizationConfig returns default optimization settings
@@ -41,10 +45,12 @@ func DefaultOptimizationConfig() OptimizationConfig {
 		EnableProgressiveSearch: true,
 		EnableStreamingResults:  false, // Disabled by default for backward compatibility
 		EnableQueryPlanCaching:  true,
+		EnableMultiLevelCache:   true,
 		MaxConcurrentQueries:    100,
 		MaxMemoryBytes:          1 << 30, // 1GB
 		CacheSizeMB:             100,
 		ParallelWorkers:         8,
+		CacheConfig:             cache.DefaultCacheManagerConfig(),
 	}
 }
 
@@ -69,6 +75,12 @@ func NewOptimizedVectorStore(base *VectorStoreImpl, config OptimizationConfig) *
 	}
 	resourceManager := query.NewResourceManager(resourceConfig)
 
+	// Create cache manager if enabled
+	var cacheManager *cache.MultiLevelCacheManager
+	if config.EnableMultiLevelCache {
+		cacheManager = cache.NewMultiLevelCacheManager(config.CacheConfig)
+	}
+
 	return &OptimizedVectorStore{
 		VectorStoreImpl:     base,
 		queryPlanner:        queryPlanner,
@@ -76,6 +88,7 @@ func NewOptimizedVectorStore(base *VectorStoreImpl, config OptimizationConfig) *
 		progressiveExecutor: progressiveExecutor,
 		streamingExecutor:   streamingExecutor,
 		resourceManager:     resourceManager,
+		cacheManager:        cacheManager,
 		config:              config,
 	}
 }
@@ -117,8 +130,46 @@ func (ovs *OptimizedVectorStore) OptimizedSearch(ctx context.Context, collection
 	queryID := fmt.Sprintf("search_%s_%d", collection, time.Now().UnixNano())
 	estimatedMemory := int64(req.TopK * 1000) // Rough estimate
 
+	// Check cache first if enabled
+	var cacheKey cache.QueryCacheKey
+	if ovs.cacheManager != nil && ovs.config.EnableMultiLevelCache {
+		cacheKey = cache.QueryCacheKey{
+			Collection:     collection,
+			QueryVector:    req.Query,
+			TopK:           req.TopK,
+			Filters:        req.Filter,
+			DistanceMetric: string(req.DistanceMetric),
+			UserID:         req.UserID,
+			IncludeVectors: req.IncludeVectors,
+		}
+		
+		// Try to get from cache with semantic matching
+		if cachedResults, found := ovs.cacheManager.GetQueryResult(ctx, cacheKey, 0.85); found {
+			// Convert cache.SearchResult to core.SearchResult
+			results := make([]SearchResult, len(cachedResults))
+			for i, cr := range cachedResults {
+				results[i] = SearchResult{
+					ID:       cr.ID,
+					Score:    cr.Score,
+					Metadata: cr.Metadata,
+				}
+				if cr.Vector != nil {
+					if vec, ok := cr.Vector.(*cache.CachedVector); ok {
+						results[i].Vector = &Vector{
+							ID:       vec.ID,
+							Values:   vec.Values,
+							Metadata: vec.Metadata,
+						}
+					}
+				}
+			}
+			return results, nil
+		}
+	}
+
 	var results []SearchResult
-	err := ovs.resourceManager.WithQueryContext(ctx, queryID, estimatedMemory, func(queryCtx context.Context) error {
+	var err error
+	err = ovs.resourceManager.WithQueryContext(ctx, queryID, estimatedMemory, func(queryCtx context.Context) error {
 		// Track operation with profiler
 		tracker := ovs.profiler.TrackOperation("optimized_search")
 		defer tracker.Finish()
@@ -158,34 +209,56 @@ func (ovs *OptimizedVectorStore) OptimizedSearch(ctx context.Context, collection
 		// Execute based on configuration and plan
 		startTime := time.Now()
 
+		var queryErr error
 		if ovs.config.EnableProgressiveSearch && plan.UseFastPath {
 			// Use progressive search for fast-path queries
-			queryResults, err := ovs.progressiveExecutor.ExecuteProgressive(queryCtx, collection, queryReq)
-			if err == nil {
+			queryResults, queryErr := ovs.progressiveExecutor.ExecuteProgressive(queryCtx, collection, queryReq)
+			if queryErr == nil {
 				results = convertSearchResults(queryResults)
 			}
-			return err
 		} else if ovs.config.EnableParallelExecution && plan.ParallelDegree > 1 {
 			// Use parallel execution for complex queries
-			queryResults, err := ovs.parallelExecutor.ExecuteParallel(queryCtx, plan, queryReq)
-			if err == nil {
+			queryResults, queryErr := ovs.parallelExecutor.ExecuteParallel(queryCtx, plan, queryReq)
+			if queryErr == nil {
 				results = convertSearchResults(queryResults)
 			}
-			return err
 		} else {
 			// Fall back to standard search
-			results, err = ovs.VectorStoreImpl.Search(queryCtx, collection, req)
-			return err
+			results, queryErr = ovs.VectorStoreImpl.Search(queryCtx, collection, req)
 		}
 
 		// Record execution metrics
-		if err == nil {
+		if queryErr == nil {
 			latency := time.Since(startTime)
 			ovs.queryPlanner.RecordExecution(plan, latency, len(results))
 		}
 
-		return err
+		return queryErr
 	})
+
+	// Cache the results if successful and cache is enabled
+	if err == nil && ovs.cacheManager != nil && ovs.config.EnableMultiLevelCache && len(results) > 0 {
+		// Convert core.SearchResult to cache.SearchResult
+		cacheResults := make([]cache.SearchResult, len(results))
+		for i, r := range results {
+			cacheResults[i] = cache.SearchResult{
+				ID:       r.ID,
+				Score:    r.Score,
+				Metadata: r.Metadata,
+			}
+			if r.Vector != nil {
+				cacheResults[i].Vector = &cache.CachedVector{
+					ID:         r.Vector.ID,
+					Values:     r.Vector.Values,
+					Metadata:   r.Vector.Metadata,
+					Collection: collection,
+				}
+			}
+		}
+		
+		ttl := 5 * time.Minute // Default TTL
+		go ovs.cacheManager.SetQueryResult(context.Background(), cacheKey, cacheResults, ttl) // Async cache update
+	}
 
 	return results, err
 }
@@ -256,7 +329,7 @@ func (ovs *OptimizedVectorStore) GetQueryMetrics() QueryOptimizationMetrics {
 	executorMetrics := ovs.parallelExecutor.GetMetrics()
 	resourceMetrics := ovs.resourceManager.GetMetrics()
 
-	return QueryOptimizationMetrics{
+	metrics := QueryOptimizationMetrics{
 		QueriesExecuted:      executorMetrics.QueriesExecuted,
 		ParallelQueries:      executorMetrics.ParallelQueries,
 		CancelledQueries:     resourceMetrics.CancelledQueries,
@@ -266,6 +339,14 @@ func (ovs *OptimizedVectorStore) GetQueryMetrics() QueryOptimizationMetrics {
 		MemoryPressureEvents: resourceMetrics.MemoryPressureEvents,
 		PeakMemoryUsage:      resourceMetrics.PeakMemoryUsage,
 	}
+
+	// Add cache metrics if available
+	if ovs.cacheManager != nil {
+		cacheStats := ovs.cacheManager.GetStats()
+		metrics.CacheStats = cacheStats
+	}
+
+	return metrics
 }
 
 // QueryOptimizationMetrics contains query optimization performance metrics
@@ -278,12 +359,18 @@ type QueryOptimizationMetrics struct {
 	WorkerUtilization    map[string]float64
 	MemoryPressureEvents int64
 	PeakMemoryUsage      int64
+	CacheStats           map[cache.CacheLevel]cache.CacheStats
 }
 
 // Shutdown gracefully shuts down the optimized vector store
 func (ovs *OptimizedVectorStore) Shutdown() error {
 	// Shutdown parallel executor
 	ovs.parallelExecutor.Shutdown()
+
+	// Close cache manager if present
+	if ovs.cacheManager != nil {
+		ovs.cacheManager.Close()
+	}
 
 	// Close base vector store
 	return ovs.VectorStoreImpl.Close()

@@ -6,4 +6,3 @@ import "github.com/dshills/EmbeddixDB/core"
 type PersistenceFactory interface {
 	CreatePersistence(config PersistenceConfig) (core.Persistence, error)
 }
-

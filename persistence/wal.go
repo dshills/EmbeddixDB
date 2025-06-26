@@ -15,11 +15,11 @@ import (
 type WALOperationType string
 
 const (
-	WALOpAddVector       WALOperationType = "add_vector"
-	WALOpDeleteVector    WALOperationType = "delete_vector"
+	WALOpAddVector        WALOperationType = "add_vector"
+	WALOpDeleteVector     WALOperationType = "delete_vector"
 	WALOpCreateCollection WALOperationType = "create_collection"
 	WALOpDeleteCollection WALOperationType = "delete_collection"
-	WALOpSaveIndexState  WALOperationType = "save_index_state"
+	WALOpSaveIndexState   WALOperationType = "save_index_state"
 	WALOpDeleteIndexState WALOperationType = "delete_index_state"
 )
 
@@ -58,20 +58,20 @@ func NewWAL(config WALConfig) (*WAL, error) {
 	if config.MaxSize == 0 {
 		config.MaxSize = 100 * 1024 * 1024 // 100MB default
 	}
-	
+
 	// Ensure WAL directory exists
 	if err := os.MkdirAll(config.Path, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create WAL directory: %w", err)
 	}
-	
+
 	walPath := filepath.Join(config.Path, "wal.log")
-	
+
 	// Open or create WAL file
 	file, err := os.OpenFile(walPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open WAL file: %w", err)
 	}
-	
+
 	wal := &WAL{
 		file:     file,
 		writer:   bufio.NewWriter(file),
@@ -81,13 +81,13 @@ func NewWAL(config WALConfig) (*WAL, error) {
 		maxSize:  config.MaxSize,
 		syncMode: config.SyncMode,
 	}
-	
+
 	// Determine next ID by reading existing entries
 	if err := wal.loadExistingEntries(); err != nil {
 		file.Close()
 		return nil, fmt.Errorf("failed to load existing WAL entries: %w", err)
 	}
-	
+
 	return wal, nil
 }
 
@@ -102,27 +102,27 @@ func (w *WAL) loadExistingEntries() error {
 		return err
 	}
 	defer readFile.Close()
-	
+
 	scanner := bufio.NewScanner(readFile)
 	maxID := int64(0)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
-		
+
 		var entry WALEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			// Skip malformed entries but continue
 			continue
 		}
-		
+
 		if entry.ID > maxID {
 			maxID = entry.ID
 		}
 	}
-	
+
 	w.nextID = maxID + 1
 	return scanner.Err()
 }
@@ -131,7 +131,7 @@ func (w *WAL) loadExistingEntries() error {
 func (w *WAL) WriteEntry(ctx context.Context, operation WALOperationType, collection, vectorID string, data []byte) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	
+
 	entry := WALEntry{
 		ID:         w.nextID,
 		Timestamp:  time.Now(),
@@ -141,43 +141,43 @@ func (w *WAL) WriteEntry(ctx context.Context, operation WALOperationType, collec
 		Data:       data,
 		Checksum:   w.calculateChecksum(data),
 	}
-	
+
 	// Serialize entry to JSON
 	entryData, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("failed to marshal WAL entry: %w", err)
 	}
-	
+
 	// Write to file (one entry per line)
 	if _, err := w.writer.Write(entryData); err != nil {
 		return fmt.Errorf("failed to write WAL entry: %w", err)
 	}
-	
+
 	if _, err := w.writer.WriteString("\n"); err != nil {
 		return fmt.Errorf("failed to write WAL newline: %w", err)
 	}
-	
+
 	// Flush buffer
 	if err := w.writer.Flush(); err != nil {
 		return fmt.Errorf("failed to flush WAL buffer: %w", err)
 	}
-	
+
 	// Sync to disk if enabled
 	if w.syncMode {
 		if err := w.file.Sync(); err != nil {
 			return fmt.Errorf("failed to sync WAL to disk: %w", err)
 		}
 	}
-	
+
 	// Add to in-memory cache
 	w.entries = append(w.entries, entry)
 	w.nextID++
-	
+
 	// Check if rotation is needed
 	if err := w.checkRotation(); err != nil {
 		return fmt.Errorf("WAL rotation check failed: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -196,11 +196,11 @@ func (w *WAL) checkRotation() error {
 	if err != nil {
 		return err
 	}
-	
+
 	if stat.Size() >= w.maxSize {
 		return w.rotate()
 	}
-	
+
 	return nil
 }
 
@@ -209,24 +209,24 @@ func (w *WAL) rotate() error {
 	// Close current file
 	w.writer.Flush()
 	w.file.Close()
-	
+
 	// Archive current file with timestamp
 	timestamp := time.Now().Format("20060102-150405")
 	archivePath := fmt.Sprintf("%s.%s", w.path, timestamp)
-	
+
 	if err := os.Rename(w.path, archivePath); err != nil {
 		return fmt.Errorf("failed to archive WAL file: %w", err)
 	}
-	
+
 	// Create new file
 	file, err := os.OpenFile(w.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to create new WAL file: %w", err)
 	}
-	
+
 	w.file = file
 	w.writer = bufio.NewWriter(file)
-	
+
 	return nil
 }
 
@@ -234,16 +234,16 @@ func (w *WAL) rotate() error {
 func (w *WAL) ReadEntries(ctx context.Context, fromID int64) ([]WALEntry, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	
+
 	var entries []WALEntry
-	
+
 	// First check in-memory cache
 	for _, entry := range w.entries {
 		if entry.ID >= fromID {
 			entries = append(entries, entry)
 		}
 	}
-	
+
 	// If we need older entries, read from file
 	if len(entries) == 0 || (len(entries) > 0 && entries[0].ID > fromID) {
 		fileEntries, err := w.readEntriesFromFile(fromID)
@@ -252,7 +252,7 @@ func (w *WAL) ReadEntries(ctx context.Context, fromID int64) ([]WALEntry, error)
 		}
 		entries = append(fileEntries, entries...)
 	}
-	
+
 	return entries, nil
 }
 
@@ -266,27 +266,27 @@ func (w *WAL) readEntriesFromFile(fromID int64) ([]WALEntry, error) {
 		return nil, err
 	}
 	defer file.Close()
-	
+
 	var entries []WALEntry
 	scanner := bufio.NewScanner(file)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
-		
+
 		var entry WALEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			// Skip malformed entries but continue
 			continue
 		}
-		
+
 		if entry.ID >= fromID {
 			entries = append(entries, entry)
 		}
 	}
-	
+
 	return entries, scanner.Err()
 }
 
@@ -301,7 +301,7 @@ func (w *WAL) GetLastID() int64 {
 func (w *WAL) Truncate(ctx context.Context, upToID int64) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	
+
 	// Remove from in-memory cache
 	newEntries := make([]WALEntry, 0)
 	for _, entry := range w.entries {
@@ -310,10 +310,10 @@ func (w *WAL) Truncate(ctx context.Context, upToID int64) error {
 		}
 	}
 	w.entries = newEntries
-	
+
 	// For file truncation, we could implement a more sophisticated approach
 	// For now, we rely on rotation to keep file sizes manageable
-	
+
 	return nil
 }
 
@@ -321,15 +321,15 @@ func (w *WAL) Truncate(ctx context.Context, upToID int64) error {
 func (w *WAL) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	
+
 	if w.writer != nil {
 		w.writer.Flush()
 	}
-	
+
 	if w.file != nil {
 		return w.file.Close()
 	}
-	
+
 	return nil
 }
 
@@ -337,10 +337,10 @@ func (w *WAL) Close() error {
 func (w *WAL) Sync() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	
+
 	if err := w.writer.Flush(); err != nil {
 		return err
 	}
-	
+
 	return w.file.Sync()
 }

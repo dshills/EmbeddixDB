@@ -3,7 +3,7 @@ package persistence
 import (
 	"fmt"
 	"time"
-	
+
 	"github.com/dshills/EmbeddixDB/core"
 )
 
@@ -20,31 +20,31 @@ func (f *DefaultFactory) CreatePersistence(config PersistenceConfig) (core.Persi
 	if err := ValidateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid persistence configuration: %w", err)
 	}
-	
+
 	// Create the base persistence layer
 	var basePersistence core.Persistence
 	var err error
-	
+
 	switch config.Type {
 	case PersistenceMemory:
 		basePersistence = NewMemoryPersistence()
-		
+
 	case PersistenceBolt:
 		basePersistence, err = f.createBoltPersistence(config)
 		if err != nil {
 			return nil, err
 		}
-		
+
 	case PersistenceBadger:
 		basePersistence, err = f.createBadgerPersistence(config)
 		if err != nil {
 			return nil, err
 		}
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported persistence type: %s", config.Type)
 	}
-	
+
 	// Wrap with WAL if configured
 	if config.WAL != nil {
 		walPersistence, err := NewWALPersistence(basePersistence, *config.WAL)
@@ -54,7 +54,7 @@ func (f *DefaultFactory) CreatePersistence(config PersistenceConfig) (core.Persi
 		}
 		return walPersistence, nil
 	}
-	
+
 	return basePersistence, nil
 }
 

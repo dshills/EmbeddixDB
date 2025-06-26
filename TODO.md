@@ -25,20 +25,36 @@
   - Health monitoring and metrics
   - Memory optimization
   - Architecture-specific configurations
+- [x] **BM25 Text Search Engine**
+  - Full-text indexing with TF-IDF scoring
+  - Tokenization and stemming with Porter algorithm
+  - Stop word filtering
+  - Phrase search support with n-gram indexing
+  - Field-specific search with boost factors
+  - Fuzzy matching with edit distance
+  - Query expansion with synonyms
+- [x] **Search Result Fusion**
+  - Reciprocal Rank Fusion (RRF)
+  - Linear combination fusion
+  - Weighted Borda Count
+  - CombSUM and ISR algorithms
+  - Relative Score Fusion
+  - Probabilistic Fusion
+  - Configurable fusion weights
 
 ## 🚧 In Progress
 
-### 1. Hybrid Search Implementation
-- [ ] **BM25 Text Search Engine** (Priority: HIGH)
-  - Full-text indexing with TF-IDF scoring
-  - Tokenization and stemming
-  - Stop word filtering
-  - Phrase search support
-- [ ] **Search Result Fusion** (Priority: HIGH)
-  - Reciprocal Rank Fusion (RRF)
-  - Linear combination fusion
-  - Learned fusion weights
-  - Re-ranking algorithms
+### 1. Advanced Retrieval Features
+- [ ] **Semantic Query Understanding** (Priority: HIGH)
+  - Query intent classification
+  - Named entity recognition in queries
+  - Query expansion with contextual embeddings
+  - Multi-lingual query support
+- [ ] **Contextual Re-ranking** (Priority: HIGH)
+  - Learn from user feedback
+  - Session-aware ranking
+  - Personalized search results
+  - Click-through rate optimization
 
 ## High Priority
 

@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dshills/EmbeddixDB/core/ai"
@@ -636,7 +635,6 @@ func (s *PorterStemmer) Stem(word string) string {
 
 // QueryExpander expands queries with related terms
 type QueryExpander struct {
-	mu       sync.RWMutex
 	concepts map[string][]string
 }
 

@@ -102,7 +102,6 @@ func NewPersonalizedSearchManager(
 	feedbackManager *FeedbackManager,
 	config PersonalizedSearchConfig,
 ) *PersonalizedSearchManager {
-
 	// Create reranker
 	reranker := feedback.NewContextualReranker(
 		feedbackManager.Collector,
@@ -327,7 +326,6 @@ func (m *PersonalizedSearchManager) performBaseSearch(
 	searchMode string,
 	vectorWeight, textWeight float64,
 ) ([]ai.SearchResult, error) {
-
 	switch searchMode {
 	case "vector":
 		return m.performVectorSearch(ctx, req)
@@ -410,7 +408,6 @@ func (m *PersonalizedSearchManager) performHybridSearch(
 	req PersonalizedSearchRequest,
 	vectorWeight, textWeight float64,
 ) ([]ai.SearchResult, error) {
-
 	// Parallel search
 	var vectorResults, textResults []ai.SearchResult
 	var vectorErr, textErr error
@@ -622,22 +619,6 @@ func convertMetadata(metadata map[string]string) map[string]interface{} {
 		result[k] = v
 	}
 	return result
-}
-
-// getVectorScore extracts vector score from explanation
-func getVectorScore(r feedback.SearchResult) float64 {
-	if r.VectorScore > 0 {
-		return r.VectorScore
-	}
-	return 0.0
-}
-
-// getTextScore extracts text score from explanation
-func getTextScore(r feedback.SearchResult) float64 {
-	if r.TextScore > 0 {
-		return r.TextScore
-	}
-	return 0.0
 }
 
 // getAIVectorScore extracts vector score from ai.SearchResult

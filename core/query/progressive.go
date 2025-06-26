@@ -321,7 +321,6 @@ func (pe *ProgressiveExecutor) ExecuteProgressive(ctx context.Context, collectio
 
 // StreamingResultWriter implements streaming result delivery
 type StreamingResultWriter struct {
-	mu           sync.Mutex
 	resultChan   chan<- SearchResult
 	errorChan    chan<- error
 	closed       atomic.Bool

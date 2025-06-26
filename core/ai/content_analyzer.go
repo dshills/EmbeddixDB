@@ -17,7 +17,6 @@ type DefaultContentAnalyzer struct {
 	topicModeler       *TopicModeler
 	sentimentAnalyzer  *SentimentAnalyzer
 	keyPhraseExtractor *KeyPhraseExtractor
-	mutex              sync.RWMutex
 	stats              *AnalysisStats
 }
 

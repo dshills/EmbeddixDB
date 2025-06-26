@@ -288,16 +288,3 @@ func BenchmarkIndexComparison(b *testing.B) {
 
 // Utility functions for statistical analysis
 
-// calculatePercentile calculates the percentile value from a sorted slice
-func calculatePercentile(sortedValues []time.Duration, percentile float64) time.Duration {
-	if len(sortedValues) == 0 {
-		return 0
-	}
-
-	index := int(float64(len(sortedValues)) * percentile)
-	if index >= len(sortedValues) {
-		index = len(sortedValues) - 1
-	}
-
-	return sortedValues[index]
-}

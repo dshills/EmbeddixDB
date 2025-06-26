@@ -11,7 +11,6 @@ import (
 
 // WALPersistence wraps any persistence backend with Write-Ahead Logging
 type WALPersistence struct {
-	mu         sync.RWMutex
 	underlying core.Persistence
 	wal        *WAL
 	lastWALID  int64

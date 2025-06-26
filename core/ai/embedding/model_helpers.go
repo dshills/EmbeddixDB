@@ -114,6 +114,10 @@ func GetDefaultConfigForArchitecture(arch ModelArchitecture) ai.ModelConfig {
 		baseConfig.PoolingStrategy = "cls"
 		baseConfig.NormalizeEmbeddings = true
 
+	case ArchitectureUnknown:
+		baseConfig.Name = "unknown-model"
+		baseConfig.PoolingStrategy = "cls"
+
 	default:
 		baseConfig.Name = "unknown-model"
 		baseConfig.PoolingStrategy = "cls"

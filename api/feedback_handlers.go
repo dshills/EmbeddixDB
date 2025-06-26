@@ -129,24 +129,37 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	s.respondWithJSON(w, http.StatusOK, session)
 }
 
-// handleGetSession retrieves session information
-func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
+// handleGetByID is a generic handler for retrieving resources by ID
+func (s *Server) handleGetByID(w http.ResponseWriter, r *http.Request, 
+	paramName string, 
+	serviceName string,
+	serviceAvailable func() bool,
+	getFunc func(context.Context, string) (interface{}, error)) {
 	vars := mux.Vars(r)
-	sessionID := vars["session_id"]
+	id := vars[paramName]
 
-	if s.feedbackManager == nil || s.feedbackManager.SessionManager == nil {
-		s.respondWithError(w, http.StatusServiceUnavailable, "Session management not available")
+	if !serviceAvailable() {
+		s.respondWithError(w, http.StatusServiceUnavailable, serviceName+" not available")
 		return
 	}
 
 	ctx := context.Background()
-	session, err := s.feedbackManager.SessionManager.GetSession(ctx, sessionID)
+	result, err := getFunc(ctx, id)
 	if err != nil {
 		s.respondWithError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
-	s.respondWithJSON(w, http.StatusOK, session)
+	s.respondWithJSON(w, http.StatusOK, result)
+}
+
+// handleGetSession retrieves session information
+func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	s.handleGetByID(w, r, "session_id", "Session management",
+		func() bool { return s.feedbackManager != nil && s.feedbackManager.SessionManager != nil },
+		func(ctx context.Context, id string) (interface{}, error) {
+			return s.feedbackManager.SessionManager.GetSession(ctx, id)
+		})
 }
 
 // handleGetUserProfile retrieves user profile
@@ -295,22 +308,11 @@ func (s *Server) handleGetCTRReport(w http.ResponseWriter, r *http.Request) {
 
 // handleGetDocumentCTR retrieves CTR metrics for a specific document
 func (s *Server) handleGetDocumentCTR(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	documentID := vars["document_id"]
-
-	if s.feedbackManager == nil || s.feedbackManager.CTRTracker == nil {
-		s.respondWithError(w, http.StatusServiceUnavailable, "CTR tracking not available")
-		return
-	}
-
-	ctx := context.Background()
-	metrics, err := s.feedbackManager.CTRTracker.GetDocumentCTR(ctx, documentID)
-	if err != nil {
-		s.respondWithError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	s.respondWithJSON(w, http.StatusOK, metrics)
+	s.handleGetByID(w, r, "document_id", "CTR tracking",
+		func() bool { return s.feedbackManager != nil && s.feedbackManager.CTRTracker != nil },
+		func(ctx context.Context, id string) (interface{}, error) {
+			return s.feedbackManager.CTRTracker.GetDocumentCTR(ctx, id)
+		})
 }
 
 // handleGetQueryCTR retrieves CTR metrics for a specific query

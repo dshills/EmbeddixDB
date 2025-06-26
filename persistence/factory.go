@@ -2,7 +2,6 @@ package persistence
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/dshills/EmbeddixDB/core"
 )
@@ -72,73 +71,3 @@ func (f *DefaultFactory) createBadgerPersistence(config PersistenceConfig) (core
 	return NewBadgerPersistence(config.Path)
 }
 
-// Helper function to parse duration from config options
-func parseDuration(options map[string]interface{}, key string, defaultValue time.Duration) time.Duration {
-	if val, exists := options[key]; exists {
-		if str, ok := val.(string); ok {
-			if duration, err := time.ParseDuration(str); err == nil {
-				return duration
-			}
-		}
-	}
-	return defaultValue
-}
-
-// Helper function to parse bool from config options
-func parseBool(options map[string]interface{}, key string, defaultValue bool) bool {
-	if val, exists := options[key]; exists {
-		if b, ok := val.(bool); ok {
-			return b
-		}
-	}
-	return defaultValue
-}
-
-// Helper function to parse int from config options
-func parseInt(options map[string]interface{}, key string, defaultValue int) int {
-	if val, exists := options[key]; exists {
-		if i, ok := val.(int); ok {
-			return i
-		}
-		if f, ok := val.(float64); ok {
-			return int(f)
-		}
-	}
-	return defaultValue
-}
-
-// Helper function to parse int64 from config options
-func parseInt64(options map[string]interface{}, key string, defaultValue int64) int64 {
-	if val, exists := options[key]; exists {
-		if i, ok := val.(int64); ok {
-			return i
-		}
-		if f, ok := val.(float64); ok {
-			return int64(f)
-		}
-		if i, ok := val.(int); ok {
-			return int64(i)
-		}
-	}
-	return defaultValue
-}
-
-// Helper function to parse float64 from config options
-func parseFloat64(options map[string]interface{}, key string, defaultValue float64) float64 {
-	if val, exists := options[key]; exists {
-		if f, ok := val.(float64); ok {
-			return f
-		}
-	}
-	return defaultValue
-}
-
-// Helper function to parse string from config options
-func parseString(options map[string]interface{}, key string, defaultValue string) string {
-	if val, exists := options[key]; exists {
-		if s, ok := val.(string); ok {
-			return s
-		}
-	}
-	return defaultValue
-}

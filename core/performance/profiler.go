@@ -18,9 +18,6 @@ type Profiler struct {
 	enabled          bool
 	profileDir       string
 	cpuProfile       *os.File
-	memProfile       *os.File
-	blockProfile     *os.File
-	goroutineProfile *os.File
 
 	// Metrics collection
 	metrics         *Metrics

@@ -212,113 +212,81 @@ func (r *ModelRegistry) IsModelDownloaded(name string) bool {
 }
 
 // loadDefaultModels loads a set of popular pre-configured models
+// createSentenceTransformerModel creates a model entry for sentence transformer models
+func createSentenceTransformerModel(name string, dimension int, size int64, accuracy, speed float64, tags []string) *ModelEntry {
+	return &ModelEntry{
+		Info: ModelInfo{
+			Name:       name,
+			Version:    "1.0",
+			Dimension:  dimension,
+			MaxTokens:  512,
+			Languages:  []string{"en"},
+			Modalities: []string{"text"},
+			License:    "Apache-2.0",
+			Size:       size,
+			Accuracy:   accuracy,
+			Speed:      int(speed),
+		},
+		Config: ModelConfig{
+			Name:                name,
+			Type:                "onnx",
+			BatchSize:           16,
+			MaxConcurrency:      2,
+			EnableGPU:           true,
+			OptimizationLevel:   1,
+			NumThreads:          4,
+			NormalizeEmbeddings: true,
+		},
+		Source: ModelSource{
+			Type:       "huggingface",
+			Repository: "sentence-transformers/" + name,
+			Revision:   "main",
+		},
+		Tags: tags,
+		Examples: []ModelExample{
+			{
+				Name:        "Semantic Search",
+				Description: "Find similar documents based on meaning",
+				Input:       []string{"What is machine learning?", "How does AI work?"},
+				UseCase:     "knowledge_base",
+			},
+		},
+		Performance: ModelPerformance{
+			Latency: map[string]float64{
+				"1":  50,
+				"8":  80,
+				"32": 150,
+			},
+			Throughput: map[string]float64{
+				"1":  20,
+				"8":  100,
+				"32": 200,
+			},
+			MemoryUsage: size / (1024 * 1024), // Convert to MB
+			Accuracy:    accuracy,
+		},
+	}
+}
+
 func (r *ModelRegistry) loadDefaultModels() {
 	// Add popular sentence transformers models
 	defaultModels := map[string]*ModelEntry{
-		"all-MiniLM-L6-v2": {
-			Info: ModelInfo{
-				Name:       "all-MiniLM-L6-v2",
-				Version:    "1.0",
-				Dimension:  384,
-				MaxTokens:  512,
-				Languages:  []string{"en"},
-				Modalities: []string{"text"},
-				License:    "Apache-2.0",
-				Size:       90 * 1024 * 1024, // ~90MB
-				Accuracy:   0.85,
-				Speed:      1000,
-			},
-			Config: ModelConfig{
-				Name:                "all-MiniLM-L6-v2",
-				Type:                "onnx",
-				BatchSize:           32,
-				MaxConcurrency:      4,
-				EnableGPU:           true,
-				OptimizationLevel:   1,
-				NumThreads:          4,
-				NormalizeEmbeddings: true,
-			},
-			Source: ModelSource{
-				Type:       "huggingface",
-				Repository: "sentence-transformers/all-MiniLM-L6-v2",
-				Revision:   "main",
-			},
-			Tags: []string{"general", "fast", "small", "english"},
-			Examples: []ModelExample{
-				{
-					Name:        "Semantic Search",
-					Description: "Find similar documents based on meaning",
-					Input:       []string{"What is machine learning?", "How does AI work?"},
-					UseCase:     "knowledge_base",
-				},
-			},
-			Performance: ModelPerformance{
-				Latency: map[string]float64{
-					"1":  50,
-					"8":  80,
-					"32": 150,
-				},
-				Throughput: map[string]float64{
-					"1":  20,
-					"8":  100,
-					"32": 200,
-				},
-				MemoryUsage: 90,
-				Accuracy:    0.85,
-			},
-		},
-		"all-mpnet-base-v2": {
-			Info: ModelInfo{
-				Name:       "all-mpnet-base-v2",
-				Version:    "1.0",
-				Dimension:  768,
-				MaxTokens:  512,
-				Languages:  []string{"en"},
-				Modalities: []string{"text"},
-				License:    "Apache-2.0",
-				Size:       420 * 1024 * 1024, // ~420MB
-				Accuracy:   0.92,
-				Speed:      500,
-			},
-			Config: ModelConfig{
-				Name:                "all-mpnet-base-v2",
-				Type:                "onnx",
-				BatchSize:           16,
-				MaxConcurrency:      2,
-				EnableGPU:           true,
-				OptimizationLevel:   2,
-				NumThreads:          4,
-				NormalizeEmbeddings: true,
-			},
-			Source: ModelSource{
-				Type:       "huggingface",
-				Repository: "sentence-transformers/all-mpnet-base-v2",
-				Revision:   "main",
-			},
-			Tags: []string{"general", "high-quality", "large", "english"},
-			Examples: []ModelExample{
-				{
-					Name:        "High-Quality Embeddings",
-					Description: "Best quality general-purpose embeddings",
-					Input:       []string{"The quick brown fox", "A fast reddish-brown fox"},
-					UseCase:     "production",
-				},
-			},
-			Performance: ModelPerformance{
-				Latency: map[string]float64{
-					"1":  120,
-					"8":  200,
-					"16": 300,
-				},
-				Throughput: map[string]float64{
-					"1":  8,
-					"8":  40,
-					"16": 50,
-				},
-				MemoryUsage: 420,
-				Accuracy:    0.92,
-			},
-		},
+		"all-MiniLM-L6-v2": createSentenceTransformerModel(
+			"all-MiniLM-L6-v2",
+			384,
+			90*1024*1024,
+			0.85,
+			1000,
+			[]string{"general", "fast", "small", "english"},
+		),
+		"all-mpnet-base-v2": createSentenceTransformerModel(
+			"all-mpnet-base-v2",
+			768,
+			420*1024*1024,
+			0.92,
+			500,
+			[]string{"general", "high-quality", "large", "english"},
+		),
 	}
 
 	for name, entry := range defaultModels {

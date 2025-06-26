@@ -190,27 +190,26 @@ func (s *BoltFeedbackStore) SaveQueryFeedback(ctx context.Context, feedback *Que
 	})
 }
 
+// loadFromBucket is a generic function to load data from a BoltDB bucket
+func (s *BoltFeedbackStore) loadFromBucket(bucketName []byte, key string, result interface{}) error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketName)
+		data := b.Get([]byte(key))
+		if data == nil {
+			return fmt.Errorf("%s not found: %s", string(bucketName), key)
+		}
+		return json.Unmarshal(data, result)
+	})
+}
+
 // LoadQueryFeedback loads query feedback
 func (s *BoltFeedbackStore) LoadQueryFeedback(ctx context.Context, queryID string) (*QueryFeedback, error) {
-	var feedback *QueryFeedback
-
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketQueryFeedback)
-		data := b.Get([]byte(queryID))
-		if data == nil {
-			return fmt.Errorf("query feedback not found: %s", queryID)
-		}
-
-		var f QueryFeedback
-		if err := json.Unmarshal(data, &f); err != nil {
-			return err
-		}
-
-		feedback = &f
-		return nil
-	})
-
-	return feedback, err
+	var feedback QueryFeedback
+	err := s.loadFromBucket(bucketQueryFeedback, queryID, &feedback)
+	if err != nil {
+		return nil, err
+	}
+	return &feedback, nil
 }
 
 // SaveDocumentFeedback saves document feedback
@@ -228,25 +227,12 @@ func (s *BoltFeedbackStore) SaveDocumentFeedback(ctx context.Context, feedback *
 
 // LoadDocumentFeedback loads document feedback
 func (s *BoltFeedbackStore) LoadDocumentFeedback(ctx context.Context, documentID string) (*DocumentFeedback, error) {
-	var feedback *DocumentFeedback
-
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketDocumentFeedback)
-		data := b.Get([]byte(documentID))
-		if data == nil {
-			return fmt.Errorf("document feedback not found: %s", documentID)
-		}
-
-		var f DocumentFeedback
-		if err := json.Unmarshal(data, &f); err != nil {
-			return err
-		}
-
-		feedback = &f
-		return nil
-	})
-
-	return feedback, err
+	var feedback DocumentFeedback
+	err := s.loadFromBucket(bucketDocumentFeedback, documentID, &feedback)
+	if err != nil {
+		return nil, err
+	}
+	return &feedback, nil
 }
 
 // BoltSessionStore implements SessionStore using BoltDB
@@ -274,25 +260,24 @@ func (s *BoltSessionStore) SaveSession(ctx context.Context, session *Session) er
 
 // LoadSession loads a session
 func (s *BoltSessionStore) LoadSession(ctx context.Context, sessionID string) (*Session, error) {
-	var session *Session
+	var session Session
+	err := s.loadFromBucket(bucketSessions, sessionID, &session)
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
 
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketSessions)
-		data := b.Get([]byte(sessionID))
+// loadFromBucket is a generic function to load data from a BoltDB bucket
+func (s *BoltSessionStore) loadFromBucket(bucketName []byte, key string, result interface{}) error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketName)
+		data := b.Get([]byte(key))
 		if data == nil {
-			return fmt.Errorf("session not found: %s", sessionID)
+			return fmt.Errorf("%s not found: %s", string(bucketName), key)
 		}
-
-		var sess Session
-		if err := json.Unmarshal(data, &sess); err != nil {
-			return err
-		}
-
-		session = &sess
-		return nil
+		return json.Unmarshal(data, result)
 	})
-
-	return session, err
 }
 
 // LoadUserSessions loads sessions for a user
@@ -355,25 +340,24 @@ func (s *BoltProfileStore) SaveProfile(ctx context.Context, profile *UserProfile
 
 // LoadProfile loads a user profile
 func (s *BoltProfileStore) LoadProfile(ctx context.Context, userID string) (*UserProfile, error) {
-	var profile *UserProfile
+	var profile UserProfile
+	err := s.loadFromBucket(bucketProfiles, userID, &profile)
+	if err != nil {
+		return nil, err
+	}
+	return &profile, nil
+}
 
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketProfiles)
-		data := b.Get([]byte(userID))
+// loadFromBucket is a generic function to load data from a BoltDB bucket
+func (s *BoltProfileStore) loadFromBucket(bucketName []byte, key string, result interface{}) error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketName)
+		data := b.Get([]byte(key))
 		if data == nil {
-			return fmt.Errorf("profile not found: %s", userID)
+			return fmt.Errorf("%s not found: %s", string(bucketName), key)
 		}
-
-		var prof UserProfile
-		if err := json.Unmarshal(data, &prof); err != nil {
-			return err
-		}
-
-		profile = &prof
-		return nil
+		return json.Unmarshal(data, result)
 	})
-
-	return profile, err
 }
 
 // DeleteProfile deletes a user profile

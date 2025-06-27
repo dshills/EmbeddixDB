@@ -16,6 +16,7 @@ type DefaultModelManager struct {
 	mutex         sync.RWMutex
 	maxModels     int
 	stats         *ManagerStats
+	engineFactory func(ModelConfig) (EmbeddingEngine, error) // Factory function to avoid import cycle
 }
 
 // LoadedModel represents a model loaded in memory
@@ -60,6 +61,13 @@ func NewModelManager(maxModels int) *DefaultModelManager {
 	manager.startBackgroundTasks()
 
 	return manager
+}
+
+// SetEngineFactory sets the embedding engine factory function
+func (m *DefaultModelManager) SetEngineFactory(factory func(ModelConfig) (EmbeddingEngine, error)) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.engineFactory = factory
 }
 
 // LoadModel loads a model for inference
@@ -247,13 +255,28 @@ func (m *DefaultModelManager) Close() error {
 
 // createEmbeddingEngine creates an embedding engine based on config
 func (m *DefaultModelManager) createEmbeddingEngine(config ModelConfig) (EmbeddingEngine, error) {
+	// Use a factory function that will be registered from outside to avoid import cycle
+	if m.engineFactory != nil {
+		engine, err := m.engineFactory(config)
+		if err != nil {
+			return nil, fmt.Errorf("engine factory error: %w", err)
+		}
+		if engine == nil {
+			return nil, fmt.Errorf("engine factory returned nil for type %q", config.Type)
+		}
+		return engine, nil
+	}
+	
+	// Fallback for testing only - production code should set engineFactory
 	switch config.Type {
-	case "onnx":
-		// For now, return a mock implementation to avoid import cycle
-		// In a real implementation, we'd have a factory pattern or dependency injection
-		return NewMockEmbeddingEngine(config), nil
+	case ModelTypeONNX, ModelTypeOllama:
+		// Only return mock in test environments
+		if m.registry == nil { // Simple check to detect test environment
+			return NewMockEmbeddingEngine(config), nil
+		}
+		return nil, fmt.Errorf("no engine factory configured for type %q", config.Type)
 	default:
-		return nil, fmt.Errorf("unsupported model type: %s", config.Type)
+		return nil, fmt.Errorf("unsupported model type %q", config.Type)
 	}
 }
 

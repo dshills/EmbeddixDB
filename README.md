@@ -17,6 +17,7 @@ A high-performance vector database with integrated AI capabilities, designed for
 
 ### 🤖 **AI Integration (NEW)**
 - **ONNX Runtime Integration**: Production-ready embedding inference with real transformer models
+- **Ollama Integration**: Use locally-hosted Ollama models for flexible embedding generation
 - **Auto-Embedding API**: Automatic vector generation from text content
 - **Content Analysis Pipeline**: Advanced text understanding with sentiment analysis, entity extraction, and topic modeling
 - **Model Management**: Support for popular architectures (BERT, RoBERTa, Sentence Transformers, etc.)

@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// Model type constants
+const (
+	ModelTypeONNX   = "onnx"
+	ModelTypeOllama = "ollama"
+)
+
 // EmbeddingEngine provides the core interface for embedding generation
 type EmbeddingEngine interface {
 	// Embed generates embeddings for a list of content strings
@@ -40,7 +46,7 @@ type ModelInfo struct {
 // ModelConfig defines model loading configuration
 type ModelConfig struct {
 	Name                string        `json:"name"`
-	Type                string        `json:"type"` // onnx, huggingface, custom
+	Type                string        `json:"type"` // onnx, huggingface, custom, ollama
 	Path                string        `json:"path"`
 	BatchSize           int           `json:"batch_size"`
 	MaxConcurrency      int           `json:"max_concurrency"`
@@ -51,6 +57,8 @@ type ModelConfig struct {
 	NormalizeEmbeddings bool          `json:"normalize_embeddings"`
 	MaxTokens           int           `json:"max_tokens"`
 	PoolingStrategy     string        `json:"pooling_strategy"` // cls, mean, max
+	Dimensions          int           `json:"dimensions"`       // Expected embedding dimensions
+	OllamaEndpoint      string        `json:"ollama_endpoint"`  // Ollama API endpoint (e.g., http://localhost:11434)
 }
 
 // HybridSearchEngine combines vector and text search capabilities

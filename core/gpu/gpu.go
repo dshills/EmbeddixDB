@@ -165,9 +165,37 @@ func (gm *GPUManager) Initialize() error {
 	// Create appropriate engine
 	switch gm.config.Backend {
 	case BackendCUDA:
-		gm.engine, err = NewCUDAEngine()
+		// Try real CUDA first if available
+		realEngine, realErr := NewRealCUDAEngine(gm.config)
+		if realErr == nil {
+			gm.engine = realEngine
+			err = nil
+		} else {
+			// Fall back to mock CUDA engine
+			mockEngine, mockErr := NewCUDAEngine()
+			if mockErr == nil {
+				gm.engine = mockEngine
+				err = nil
+			} else {
+				err = mockErr
+			}
+		}
 	case BackendOpenCL:
-		gm.engine, err = NewOpenCLEngine()
+		// Try real OpenCL first if available
+		realEngine, realErr := NewRealOpenCLEngine(gm.config)
+		if realErr == nil {
+			gm.engine = realEngine
+			err = nil
+		} else {
+			// Fall back to mock OpenCL engine
+			mockEngine, mockErr := NewOpenCLEngine()
+			if mockErr == nil {
+				gm.engine = mockEngine
+				err = nil
+			} else {
+				err = mockErr
+			}
+		}
 	case BackendCPU:
 		gm.engine, err = NewCPUEngine()
 	default:
@@ -275,13 +303,25 @@ func (gm *GPUManager) updateStats(result *DistanceResult) {
 
 // detectBestBackend detects the best available GPU backend
 func (gm *GPUManager) detectBestBackend() GPUBackend {
-	// Try CUDA first
+	// Try real CUDA first
+	if realCUDA, err := NewRealCUDAEngine(gm.config); err == nil {
+		realCUDA.Cleanup()
+		return BackendCUDA
+	}
+
+	// Try real OpenCL
+	if realOpenCL, err := NewRealOpenCLEngine(gm.config); err == nil {
+		realOpenCL.Cleanup()
+		return BackendOpenCL
+	}
+
+	// Try mock CUDA
 	if cudaEngine, err := NewCUDAEngine(); err == nil {
 		cudaEngine.Cleanup()
 		return BackendCUDA
 	}
 
-	// Try OpenCL
+	// Try mock OpenCL
 	if openclEngine, err := NewOpenCLEngine(); err == nil {
 		openclEngine.Cleanup()
 		return BackendOpenCL

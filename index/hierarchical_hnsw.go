@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dshills/EmbeddixDB/core"
+	"github.com/dshills/EmbeddixDB/core/hierarchical"
 )
 
 // HierarchicalHNSW implements a two-level hierarchical HNSW index
@@ -27,8 +28,26 @@ type HierarchicalHNSW struct {
 	dimension int
 	// Distance metric
 	distanceMetric core.DistanceMetric
+	// Clustering components
+	clusterer  *hierarchical.KMeansClusterer
+	rebalancer *hierarchical.ClusterRebalancer
+	optimizer  *hierarchical.BackgroundOptimizer
+	// Cluster metadata
+	clusterMetadata map[int]*ClusterMetadata
+	// All vectors for clustering operations
+	vectors map[string]core.Vector
 	// Thread safety
 	mu sync.RWMutex
+}
+
+// ClusterMetadata stores metadata about a cluster
+type ClusterMetadata struct {
+	ID              int
+	Centroid        []float32
+	CoarseCentroid  []float32
+	Size            int
+	LastUpdated     time.Time
+	QualityScore    float64
 }
 
 // HierarchicalConfig configures the hierarchical HNSW structure
@@ -94,13 +113,52 @@ func NewHierarchicalHNSW(dimension int, distanceMetric core.DistanceMetric, conf
 	// Create coarse level index with reduced dimensions
 	coarseIndex := NewHNSWIndex(config.CoarseDimension, distanceMetric, config.CoarseConfig)
 
+	// Create clustering components
+	clusterer := hierarchical.NewKMeansClusterer(
+		config.NumFineClusters,
+		dimension,
+		distanceMetric,
+		hierarchical.WithMaxIterations(50),
+		hierarchical.WithBalanceFactor(0.5),
+	)
+
+	rebalancerConfig := hierarchical.RebalancerConfig{
+		SizeImbalanceThreshold:   config.RebalanceThreshold,
+		QualityThreshold:         config.QualityThreshold,
+		MinTimeBetweenRebalance:  time.Minute * 5,
+		MaxVectorsToMove:         1000,
+		TargetClusterSize:        config.MaxVectorsPerCluster,
+		AllowSplitMerge:          true,
+		BackgroundRebalance:      true,
+		RebalanceBatchSize:       100,
+	}
+	rebalancer := hierarchical.NewClusterRebalancer(rebalancerConfig)
+
+	optimizerConfig := hierarchical.OptimizerConfig{
+		EnableOptimization:      config.EnableIncrementalUpdates,
+		OptimizationInterval:    time.Minute * 10,
+		MinTimeBetweenTasks:     time.Minute * 5,
+		ClusterQualityWeight:    1.0,
+		GraphConnectivityWeight: 0.8,
+		MemoryEfficiencyWeight:  0.6,
+		MaxCPUPercent:           20.0,
+		MaxMemoryMB:             1024,
+		MaxConcurrentTasks:      2,
+	}
+	optimizer := hierarchical.NewBackgroundOptimizer(optimizerConfig)
+
 	h := &HierarchicalHNSW{
-		coarseIndex:    coarseIndex,
-		fineIndexes:    make(map[int]core.Index),
-		config:         config,
-		vectorRouting:  make(map[string]int),
-		dimension:      dimension,
-		distanceMetric: distanceMetric,
+		coarseIndex:     coarseIndex,
+		fineIndexes:     make(map[int]core.Index),
+		config:          config,
+		vectorRouting:   make(map[string]int),
+		dimension:       dimension,
+		distanceMetric:  distanceMetric,
+		clusterer:       clusterer,
+		rebalancer:      rebalancer,
+		optimizer:       optimizer,
+		clusterMetadata: make(map[int]*ClusterMetadata),
+		vectors:         make(map[string]core.Vector),
 		qualityMonitor: &QualityMonitor{
 			searchQueries: make([]QualityMetric, 0, 1000),
 		},
@@ -109,6 +167,16 @@ func NewHierarchicalHNSW(dimension int, distanceMetric core.DistanceMetric, conf
 	// Initialize fine-level indexes
 	for i := 0; i < config.NumFineClusters; i++ {
 		h.fineIndexes[i] = NewHNSWIndex(dimension, distanceMetric, config.FineConfig)
+		h.clusterMetadata[i] = &ClusterMetadata{
+			ID:          i,
+			Centroid:    make([]float32, dimension),
+			LastUpdated: time.Now(),
+		}
+	}
+
+	// Start background optimizer if enabled
+	if config.EnableIncrementalUpdates {
+		optimizer.Start(h)
 	}
 
 	return h
@@ -123,31 +191,41 @@ func (h *HierarchicalHNSW) Add(vector core.Vector) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// Step 1: Create coarse representation (dimensionality reduction)
-	coarseVector, err := h.createCoarseRepresentation(vector)
+	// Store vector for clustering operations
+	h.vectors[vector.ID] = vector
+
+	// Step 1: Determine fine cluster assignment using proper clustering
+	clusterID := h.assignToFineClusterWithClustering(vector)
+
+	// Step 2: Create coarse representation based on cluster centroid
+	coarseVector, err := h.createCoarseRepresentationFromCluster(vector, clusterID)
 	if err != nil {
 		return fmt.Errorf("failed to create coarse representation: %w", err)
 	}
 
-	// Step 2: Add to coarse index for routing
+	// Step 3: Add to coarse index for routing
 	if err := h.coarseIndex.Add(coarseVector); err != nil {
 		return fmt.Errorf("failed to add to coarse index: %w", err)
 	}
-
-	// Step 3: Determine fine cluster assignment
-	clusterID := h.assignToFineCluster(vector)
 
 	// Step 4: Add to assigned fine cluster
 	if err := h.fineIndexes[clusterID].Add(vector); err != nil {
 		return fmt.Errorf("failed to add to fine cluster %d: %w", clusterID, err)
 	}
 
-	// Step 5: Update routing table
+	// Step 5: Update routing table and cluster metadata
 	h.vectorRouting[vector.ID] = clusterID
+	h.updateClusterMetadata(clusterID)
 
-	// Step 6: Check for rebalancing if incremental updates are enabled
+	// Step 6: Update rebalancer statistics
+	vectorIDs := h.getClusterVectorIDs(clusterID)
+	h.rebalancer.UpdateClusterStats(clusterID, len(vectorIDs), vectorIDs)
+
+	// Step 7: Check for rebalancing if incremental updates are enabled
 	if h.config.EnableIncrementalUpdates {
-		h.checkRebalancing()
+		if needsRebalance, reason := h.rebalancer.NeedsRebalancing(); needsRebalance {
+			go h.performRebalancing(reason)
+		}
 	}
 
 	return nil
@@ -164,59 +242,233 @@ func (h *HierarchicalHNSW) Search(query []float32, k int, filter map[string]stri
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	// Step 1: Create coarse representation of query
-	coarseQuery, err := h.createCoarseQuery(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create coarse query: %w", err)
-	}
+	// Step 1: Find most relevant clusters using centroids
+	relevantClusters := h.findRelevantClusters(query, k)
+	
+	// Step 2: Create coarse representation based on relevant clusters
+	coarseQuery := h.createAdaptiveCoarseQuery(query, relevantClusters)
 
-	// Step 2: Search coarse index to find relevant fine clusters
-	clusterCandidates := int(math.Ceil(float64(h.config.NumFineClusters) * (h.config.RoutingOverlap + 0.1)))
+	// Step 3: Search coarse index for additional routing hints
+	clusterCandidates := int(math.Ceil(float64(len(relevantClusters)) * (1.0 + h.config.RoutingOverlap)))
 	coarseResults, err := h.coarseIndex.Search(coarseQuery, clusterCandidates, nil)
 	if err != nil {
-		return nil, fmt.Errorf("coarse search failed: %w", err)
+		// Fall back to direct cluster search
+		coarseResults = nil
 	}
 
-	// Step 3: Search relevant fine clusters
-	var allResults []core.SearchResult
-	clusterHits := 0
-
+	// Step 4: Combine relevant clusters from both methods
+	searchClusters := make(map[int]float32)
+	
+	// Add clusters from centroid search with distances
+	for _, rc := range relevantClusters {
+		searchClusters[rc.clusterID] = rc.distance
+	}
+	
+	// Add clusters from coarse search
 	for _, coarseResult := range coarseResults {
-		// Map coarse result to cluster ID
 		clusterID := h.mapCoarseResultToCluster(coarseResult.ID)
-		if fineIndex, exists := h.fineIndexes[clusterID]; exists {
-			clusterHits++
-
-			// Search fine cluster with higher k to account for filtering
-			fineK := k * 2
-			fineResults, err := fineIndex.Search(query, fineK, filter)
-			if err != nil {
-				continue // Skip problematic clusters
-			}
-
-			allResults = append(allResults, fineResults...)
+		if _, exists := searchClusters[clusterID]; !exists {
+			searchClusters[clusterID] = coarseResult.Score
 		}
 	}
 
-	// Step 4: Merge and rank results
-	sort.Slice(allResults, func(i, j int) bool {
-		return allResults[i].Score < allResults[j].Score
-	})
+	// Step 5: Search relevant fine clusters with priority ordering
+	allResults := h.searchClustersWithPriority(query, searchClusters, k, filter)
 
-	// Step 5: Return top k results
+	// Step 6: Final reranking if needed
+	// TODO: Add quantization support when available
+	// if h.config.FineConfig.UseQuantization {
+	// 	allResults = h.rerankWithFullPrecision(query, allResults, k*2)
+	// }
+
+	// Step 7: Return top k results
 	if k > len(allResults) {
 		k = len(allResults)
 	}
-
 	results := allResults[:k]
 
-	// Step 6: Record quality metrics if monitoring is enabled
+	// Step 8: Record quality metrics and update search statistics
 	if h.config.EnableQualityMonitoring {
 		latency := getCurrentTimeMs() - startTime
-		h.recordQualityMetric(len(results), latency, clusterHits)
+		h.recordQualityMetric(len(results), latency, len(searchClusters))
+		
+		// Update cluster search metrics for adaptive routing
+		for clusterID := range searchClusters {
+			h.rebalancer.UpdateSearchMetrics(clusterID, latency, float64(len(results))/float64(k))
+		}
 	}
 
 	return results, nil
+}
+
+// findRelevantClusters finds clusters most relevant to the query
+func (h *HierarchicalHNSW) findRelevantClusters(query []float32, k int) []struct {
+	clusterID int
+	distance  float32
+} {
+	type clusterDist struct {
+		clusterID int
+		distance  float32
+	}
+	
+	clusters := make([]clusterDist, 0, h.config.NumFineClusters)
+	
+	// Compute distances to all cluster centroids
+	for clusterID, metadata := range h.clusterMetadata {
+		if len(metadata.Centroid) == len(query) {
+			dist := h.computeDistance(query, metadata.Centroid)
+			clusters = append(clusters, clusterDist{
+				clusterID: clusterID,
+				distance:  dist,
+			})
+		}
+	}
+	
+	// Sort by distance
+	sort.Slice(clusters, func(i, j int) bool {
+		return clusters[i].distance < clusters[j].distance
+	})
+	
+	// Select top clusters based on k and overlap
+	numClusters := int(math.Ceil(math.Sqrt(float64(k)) * (1.0 + h.config.RoutingOverlap)))
+	if numClusters > len(clusters) {
+		numClusters = len(clusters)
+	}
+	
+	result := make([]struct {
+		clusterID int
+		distance  float32
+	}, numClusters)
+	
+	for i := 0; i < numClusters; i++ {
+		result[i].clusterID = clusters[i].clusterID
+		result[i].distance = clusters[i].distance
+	}
+	
+	return result
+}
+
+// createAdaptiveCoarseQuery creates a coarse query adapted to relevant clusters
+func (h *HierarchicalHNSW) createAdaptiveCoarseQuery(query []float32, relevantClusters []struct {
+	clusterID int
+	distance  float32
+}) []float32 {
+	if len(relevantClusters) == 0 {
+		// Fall back to simple reduction
+		coarse := make([]float32, h.config.CoarseDimension)
+		copy(coarse, query[:h.config.CoarseDimension])
+		return coarse
+	}
+	
+	// Use weighted average of relevant cluster coarse centroids
+	coarseQuery := make([]float32, h.config.CoarseDimension)
+	totalWeight := float32(0)
+	
+	for _, rc := range relevantClusters {
+		if metadata, exists := h.clusterMetadata[rc.clusterID]; exists && len(metadata.CoarseCentroid) > 0 {
+			// Weight inversely by distance
+			weight := 1.0 / (rc.distance + 0.1)
+			for i, val := range metadata.CoarseCentroid {
+				coarseQuery[i] += val * weight
+			}
+			totalWeight += weight
+		}
+	}
+	
+	// Normalize
+	if totalWeight > 0 {
+		for i := range coarseQuery {
+			coarseQuery[i] /= totalWeight
+		}
+	} else {
+		// Fall back to simple reduction
+		copy(coarseQuery, query[:h.config.CoarseDimension])
+	}
+	
+	return coarseQuery
+}
+
+// searchClustersWithPriority searches clusters in priority order
+func (h *HierarchicalHNSW) searchClustersWithPriority(query []float32, clusters map[int]float32, k int, filter map[string]string) []core.SearchResult {
+	// Sort clusters by distance/score
+	type clusterPriority struct {
+		id    int
+		score float32
+	}
+	
+	priorities := make([]clusterPriority, 0, len(clusters))
+	for id, score := range clusters {
+		priorities = append(priorities, clusterPriority{id: id, score: score})
+	}
+	
+	sort.Slice(priorities, func(i, j int) bool {
+		return priorities[i].score < priorities[j].score
+	})
+	
+	// Search clusters in priority order
+	var allResults []core.SearchResult
+	searched := 0
+	
+	for _, cp := range priorities {
+		if fineIndex, exists := h.fineIndexes[cp.id]; exists {
+			// Adaptive k based on cluster priority
+			searchK := k
+			if searched > 0 {
+				searchK = k / 2 // Search fewer in lower priority clusters
+			}
+			
+			fineResults, err := fineIndex.Search(query, searchK, filter)
+			if err != nil {
+				continue
+			}
+			
+			allResults = append(allResults, fineResults...)
+			searched++
+			
+			// Early termination if we have enough good results
+			if len(allResults) >= k*3 {
+				break
+			}
+		}
+	}
+	
+	// Sort all results by score
+	sort.Slice(allResults, func(i, j int) bool {
+		return allResults[i].Score < allResults[j].Score
+	})
+	
+	// Remove duplicates
+	seen := make(map[string]bool)
+	uniqueResults := make([]core.SearchResult, 0, len(allResults))
+	for _, result := range allResults {
+		if !seen[result.ID] {
+			seen[result.ID] = true
+			uniqueResults = append(uniqueResults, result)
+		}
+	}
+	
+	return uniqueResults
+}
+
+// rerankWithFullPrecision reranks results using full precision vectors
+func (h *HierarchicalHNSW) rerankWithFullPrecision(query []float32, results []core.SearchResult, limit int) []core.SearchResult {
+	if limit > len(results) {
+		limit = len(results)
+	}
+	
+	// Recompute distances with full precision
+	for i := 0; i < limit; i++ {
+		if v, exists := h.vectors[results[i].ID]; exists {
+			results[i].Score = h.computeDistance(query, v.Values)
+		}
+	}
+	
+	// Re-sort by updated scores
+	sort.Slice(results[:limit], func(i, j int) bool {
+		return results[i].Score < results[j].Score
+	})
+	
+	return results
 }
 
 // RangeSearch finds all vectors within a distance threshold
@@ -274,8 +526,16 @@ func (h *HierarchicalHNSW) Delete(id string) error {
 		// Log but don't fail - coarse index inconsistency is recoverable
 	}
 
-	// Remove from routing table
+	// Remove from routing table and vectors map
 	delete(h.vectorRouting, id)
+	delete(h.vectors, id)
+
+	// Update cluster metadata
+	h.updateClusterMetadata(clusterID)
+
+	// Update rebalancer statistics
+	vectorIDs := h.getClusterVectorIDs(clusterID)
+	h.rebalancer.UpdateClusterStats(clusterID, len(vectorIDs), vectorIDs)
 
 	return nil
 }
@@ -313,6 +573,37 @@ func (h *HierarchicalHNSW) createCoarseQuery(query []float32) ([]float32, error)
 	coarseQuery := make([]float32, coarseDim)
 	copy(coarseQuery, query[:coarseDim])
 	return coarseQuery, nil
+}
+
+// assignToFineClusterWithClustering uses clustering to assign vectors
+func (h *HierarchicalHNSW) assignToFineClusterWithClustering(vector core.Vector) int {
+	// If we have enough vectors, use proper clustering
+	if len(h.vectors) >= h.config.NumFineClusters*10 {
+		// Find nearest cluster centroid
+		minDist := float32(math.MaxFloat32)
+		bestCluster := 0
+		
+		for clusterID, metadata := range h.clusterMetadata {
+			if len(metadata.Centroid) == len(vector.Values) {
+				dist := h.computeDistance(vector.Values, metadata.Centroid)
+				if dist < minDist {
+					minDist = dist
+					bestCluster = clusterID
+				}
+			}
+		}
+		
+		// Check cluster capacity
+		if h.fineIndexes[bestCluster].Size() < h.config.MaxVectorsPerCluster {
+			return bestCluster
+		}
+		
+		// Find alternative cluster with capacity
+		return h.findAlternativeCluster(vector, bestCluster)
+	}
+	
+	// Fall back to adaptive assignment for initial vectors
+	return h.adaptiveClusterAssignment(vector)
 }
 
 // assignToFineCluster determines which fine cluster a vector should be assigned to
@@ -445,6 +736,371 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// createCoarseRepresentationFromCluster creates coarse representation using cluster info
+func (h *HierarchicalHNSW) createCoarseRepresentationFromCluster(vector core.Vector, clusterID int) (core.Vector, error) {
+	// Use cluster centroid for coarse representation if available
+	if metadata, exists := h.clusterMetadata[clusterID]; exists && len(metadata.CoarseCentroid) > 0 {
+		return core.Vector{
+			ID:       vector.ID,
+			Values:   metadata.CoarseCentroid,
+			Metadata: vector.Metadata,
+		}, nil
+	}
+	
+	// Fall back to simple dimensionality reduction
+	return h.createCoarseRepresentation(vector)
+}
+
+// findAlternativeCluster finds an alternative cluster when preferred is full
+func (h *HierarchicalHNSW) findAlternativeCluster(vector core.Vector, excludeCluster int) int {
+	type clusterDist struct {
+		id   int
+		dist float32
+	}
+	
+	candidates := make([]clusterDist, 0, h.config.NumFineClusters-1)
+	
+	for clusterID, metadata := range h.clusterMetadata {
+		if clusterID == excludeCluster {
+			continue
+		}
+		
+		if h.fineIndexes[clusterID].Size() < h.config.MaxVectorsPerCluster {
+			dist := h.computeDistance(vector.Values, metadata.Centroid)
+			candidates = append(candidates, clusterDist{id: clusterID, dist: dist})
+		}
+	}
+	
+	// Sort by distance
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].dist < candidates[j].dist
+	})
+	
+	if len(candidates) > 0 {
+		return candidates[0].id
+	}
+	
+	// All clusters full, return least loaded
+	return h.adaptiveClusterAssignment(vector)
+}
+
+// updateClusterMetadata updates cluster centroid and metadata
+func (h *HierarchicalHNSW) updateClusterMetadata(clusterID int) {
+	metadata := h.clusterMetadata[clusterID]
+	
+	// Get all vectors in cluster
+	clusterVectors := make([]core.Vector, 0)
+	for vid, cid := range h.vectorRouting {
+		if cid == clusterID {
+			if v, exists := h.vectors[vid]; exists {
+				clusterVectors = append(clusterVectors, v)
+			}
+		}
+	}
+	
+	if len(clusterVectors) == 0 {
+		return
+	}
+	
+	// Compute new centroid
+	centroid := make([]float32, h.dimension)
+	for _, v := range clusterVectors {
+		for i, val := range v.Values {
+			centroid[i] += val
+		}
+	}
+	for i := range centroid {
+		centroid[i] /= float32(len(clusterVectors))
+	}
+	
+	metadata.Centroid = centroid
+	metadata.Size = len(clusterVectors)
+	metadata.LastUpdated = time.Now()
+	
+	// Update coarse centroid
+	coarseCentroid := make([]float32, h.config.CoarseDimension)
+	copy(coarseCentroid, centroid[:h.config.CoarseDimension])
+	metadata.CoarseCentroid = coarseCentroid
+}
+
+// getClusterVectorIDs returns all vector IDs in a cluster
+func (h *HierarchicalHNSW) getClusterVectorIDs(clusterID int) []string {
+	vectorIDs := make([]string, 0)
+	for vid, cid := range h.vectorRouting {
+		if cid == clusterID {
+			vectorIDs = append(vectorIDs, vid)
+		}
+	}
+	return vectorIDs
+}
+
+// performRebalancing performs cluster rebalancing
+func (h *HierarchicalHNSW) performRebalancing(reason string) {
+	// Create rebalancing plan
+	plan := h.rebalancer.PlanRebalancing()
+	plan.Reason = reason
+	
+	// Execute rebalancing
+	if err := h.rebalancer.ExecuteRebalancing(plan, h); err != nil {
+		// Log error but don't fail
+		return
+	}
+	
+	// Trigger re-clustering if significant changes
+	if len(plan.Moves) > h.config.NumFineClusters*10 {
+		go h.reclusterAll()
+	}
+}
+
+// reclusterAll performs complete re-clustering
+func (h *HierarchicalHNSW) reclusterAll() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	// Collect all vectors
+	allVectors := make([]core.Vector, 0, len(h.vectors))
+	for _, v := range h.vectors {
+		allVectors = append(allVectors, v)
+	}
+	
+	if len(allVectors) < h.config.NumFineClusters {
+		return
+	}
+	
+	// Perform clustering
+	result, err := h.clusterer.Cluster(allVectors)
+	if err != nil {
+		return
+	}
+	
+	// Apply new assignments
+	for vid, newClusterID := range result.Assignments {
+		oldClusterID, exists := h.vectorRouting[vid]
+		if !exists || oldClusterID == newClusterID {
+			continue
+		}
+		
+		// Move vector to new cluster
+		if v, exists := h.vectors[vid]; exists {
+			h.fineIndexes[oldClusterID].Delete(vid)
+			h.fineIndexes[newClusterID].Add(v)
+			h.vectorRouting[vid] = newClusterID
+		}
+	}
+	
+	// Update all cluster metadata
+	for i := 0; i < h.config.NumFineClusters; i++ {
+		h.updateClusterMetadata(i)
+	}
+}
+
+// computeDistance computes distance between two vectors
+func (h *HierarchicalHNSW) computeDistance(v1, v2 []float32) float32 {
+	dist, err := core.CalculateDistanceOptimized(v1, v2, h.distanceMetric)
+	if err != nil {
+		// Fall back to L2 distance on error
+		dist, _ = core.EuclideanDistance(v1, v2)
+	}
+	return dist
+}
+
+// Interface compliance for hierarchical.RebalancingIndex
+func (h *HierarchicalHNSW) MoveVector(vectorID string, fromCluster, toCluster int) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	v, exists := h.vectors[vectorID]
+	if !exists {
+		return fmt.Errorf("vector %s not found", vectorID)
+	}
+	
+	// Remove from old cluster
+	if err := h.fineIndexes[fromCluster].Delete(vectorID); err != nil {
+		return err
+	}
+	
+	// Add to new cluster
+	if err := h.fineIndexes[toCluster].Add(v); err != nil {
+		return err
+	}
+	
+	// Update routing
+	h.vectorRouting[vectorID] = toCluster
+	
+	return nil
+}
+
+func (h *HierarchicalHNSW) SplitCluster(clusterID int, newCount int) error {
+	// TODO: Implementation would split the cluster into newCount sub-clusters
+	return fmt.Errorf("cluster splitting not yet implemented")
+}
+
+func (h *HierarchicalHNSW) MergeClusters(cluster1, cluster2 int) error {
+	// TODO: Implementation would merge two clusters
+	return fmt.Errorf("cluster merging not yet implemented")
+}
+
+// Interface compliance for hierarchical.OptimizableIndex
+func (h *HierarchicalHNSW) GetClusterQuality() float64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	
+	totalQuality := 0.0
+	count := 0
+	
+	for _, metadata := range h.clusterMetadata {
+		if metadata.QualityScore > 0 {
+			totalQuality += metadata.QualityScore
+			count++
+		}
+	}
+	
+	if count == 0 {
+		return 0.5 // Default medium quality
+	}
+	
+	return totalQuality / float64(count)
+}
+
+func (h *HierarchicalHNSW) GetClusterAssignments() ([]core.Vector, map[string]int) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	
+	vectors := make([]core.Vector, 0, len(h.vectors))
+	for _, v := range h.vectors {
+		vectors = append(vectors, v)
+	}
+	
+	assignments := make(map[string]int)
+	for k, v := range h.vectorRouting {
+		assignments[k] = v
+	}
+	
+	return vectors, assignments
+}
+
+func (h *HierarchicalHNSW) UpdateClusterAssignments(assignments map[string]int) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	for vid, newClusterID := range assignments {
+		oldClusterID, exists := h.vectorRouting[vid]
+		if !exists || oldClusterID == newClusterID {
+			continue
+		}
+		
+		if v, exists := h.vectors[vid]; exists {
+			h.fineIndexes[oldClusterID].Delete(vid)
+			h.fineIndexes[newClusterID].Add(v)
+			h.vectorRouting[vid] = newClusterID
+		}
+	}
+	
+	return nil
+}
+
+func (h *HierarchicalHNSW) GetClusters() []hierarchical.Cluster {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	
+	clusters := make([]hierarchical.Cluster, 0, h.config.NumFineClusters)
+	
+	for i := 0; i < h.config.NumFineClusters; i++ {
+		members := make([]string, 0)
+		for vid, cid := range h.vectorRouting {
+			if cid == i {
+				members = append(members, vid)
+			}
+		}
+		
+		cluster := hierarchical.Cluster{
+			ID:       i,
+			Centroid: h.clusterMetadata[i].Centroid,
+			Members:  members,
+			Size:     len(members),
+		}
+		clusters = append(clusters, cluster)
+	}
+	
+	return clusters
+}
+
+func (h *HierarchicalHNSW) ComputeCentroid(memberIDs []string) []float32 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	
+	centroid := make([]float32, h.dimension)
+	count := 0
+	
+	for _, id := range memberIDs {
+		if v, exists := h.vectors[id]; exists {
+			for i, val := range v.Values {
+				centroid[i] += val
+			}
+			count++
+		}
+	}
+	
+	if count > 0 {
+		for i := range centroid {
+			centroid[i] /= float32(count)
+		}
+	}
+	
+	return centroid
+}
+
+func (h *HierarchicalHNSW) UpdateCentroid(clusterID int, centroid []float32) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	if metadata, exists := h.clusterMetadata[clusterID]; exists {
+		metadata.Centroid = centroid
+		metadata.LastUpdated = time.Now()
+	}
+	
+	return nil
+}
+
+func (h *HierarchicalHNSW) GetGraphConnectivity() float64 {
+	// Simplified - would check actual graph connectivity
+	return 0.9
+}
+
+func (h *HierarchicalHNSW) FindDisconnectedComponents() [][]string {
+	// TODO: Implementation would find actual disconnected components
+	return [][]string{} // Return empty slice instead of nil
+}
+
+func (h *HierarchicalHNSW) RepairComponent(component []string) error {
+	// TODO: Implementation would repair disconnected components
+	return fmt.Errorf("component repair not yet implemented")
+}
+
+func (h *HierarchicalHNSW) PruneRedundantEdges() (int, error) {
+	// TODO: Implementation would prune redundant edges
+	return 0, fmt.Errorf("edge pruning not yet implemented")
+}
+
+func (h *HierarchicalHNSW) GetMemoryEfficiency() float64 {
+	// Simplified - would calculate actual memory efficiency
+	return 0.8
+}
+
+func (h *HierarchicalHNSW) GetMemoryUsage() int64 {
+	// Simplified - would calculate actual memory usage
+	return int64(len(h.vectors) * h.dimension * 4)
+}
+
+func (h *HierarchicalHNSW) CompactMemory() error {
+	// Simplified - would compact memory usage
+	return nil
+}
+
+func (h *HierarchicalHNSW) GetDistanceMetric() core.DistanceMetric {
+	return h.distanceMetric
 }
 
 // Interface compliance

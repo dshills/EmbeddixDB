@@ -185,12 +185,20 @@ EmbeddixDB includes an MCP server that enables LLMs to use the vector database a
 # Build the MCP server
 make build-mcp
 
+# Run with default configuration from ~/.embeddixdb.yml
+./build/embeddix-mcp
+
+# Run with custom configuration file
+./build/embeddix-mcp -config /path/to/config.yml
+
 # Run with in-memory storage (for testing)
 ./build/embeddix-mcp -persistence memory
 
-# Run with persistent storage
-./build/embeddix-mcp -persistence bolt -data ./data
+# Run with persistent storage and verbose output
+./build/embeddix-mcp -persistence bolt -data ./data -verbose
 ```
+
+The MCP server now uses the same configuration system as the API server, automatically enabling embedding support if configured in `~/.embeddixdb.yml`.
 
 ### MCP Tools Available
 
@@ -207,6 +215,19 @@ The MCP server exposes the following tools for LLM integration:
 ### Using with Claude Desktop
 
 Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "embeddixdb": {
+      "command": "/path/to/embeddix-mcp",
+      "args": ["-config", "/path/to/.embeddixdb.yml", "-verbose"]
+    }
+  }
+}
+```
+
+Or for a simpler setup without configuration file:
 
 ```json
 {

@@ -9,8 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/dshills/EmbeddixDB/config"
 	"github.com/dshills/EmbeddixDB/core"
 	"github.com/dshills/EmbeddixDB/core/ai"
+	"github.com/dshills/EmbeddixDB/core/ai/embedding"
 	"github.com/dshills/EmbeddixDB/index"
 	"github.com/dshills/EmbeddixDB/mcp"
 	"github.com/dshills/EmbeddixDB/persistence"
@@ -19,12 +21,13 @@ import (
 func main() {
 	// Command line flags
 	var (
-		persistenceType = flag.String("persistence", "memory", "Persistence type: memory, bolt, badger")
-		dataPath        = flag.String("data", "./data", "Data directory path")
+		configPath      = flag.String("config", "", "Path to configuration file (default: ~/.embeddixdb.yml)")
+		persistenceType = flag.String("persistence", "", "Persistence type: memory, bolt, badger (overrides config)")
+		dataPath        = flag.String("data", "", "Data directory path (overrides config)")
 		verbose         = flag.Bool("verbose", false, "Enable verbose logging")
 		enableEmbedding = flag.Bool("enable-embedding", false, "Enable text embedding support")
-		modelPath       = flag.String("model", "", "Path to ONNX embedding model")
-		modelName       = flag.String("model-name", "all-MiniLM-L6-v2", "Name of the embedding model")
+		modelPath       = flag.String("model", "", "Path to ONNX embedding model (overrides config)")
+		modelName       = flag.String("model-name", "", "Name of the embedding model (overrides config)")
 	)
 
 	flag.Parse()
@@ -36,21 +39,29 @@ func main() {
 		log.SetFlags(0)
 	}
 
-	// Create persistence configuration
-	var persistenceTypeEnum persistence.PersistenceType
-	switch *persistenceType {
-	case "memory":
-		persistenceTypeEnum = persistence.PersistenceMemory
-	case "bolt":
-		persistenceTypeEnum = persistence.PersistenceBolt
-	case "badger":
-		persistenceTypeEnum = persistence.PersistenceBadger
-	default:
-		log.Fatalf("Unknown persistence type: %s", *persistenceType)
+	// Load configuration
+	cfg, err := config.LoadConfig(*configPath)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Override with command-line flags
+	if *persistenceType != "" {
+		cfg.Persistence.Type = persistence.PersistenceType(*persistenceType)
+	}
+	if *dataPath != "" {
+		cfg.Persistence.Path = *dataPath
+		cfg.Persistence.Options["path"] = *dataPath
+	}
+	if *modelPath != "" {
+		cfg.AI.Embedding.ONNX.ModelPath = *modelPath
+	}
+	if *modelName != "" {
+		cfg.AI.Embedding.Model = *modelName
 	}
 
 	// Create persistence configuration
-	persistenceConfig := persistence.DefaultPersistenceConfig(persistenceTypeEnum, *dataPath)
+	persistenceConfig := cfg.Persistence
 
 	// Create persistence factory and persistence backend
 	persistenceFactory := persistence.NewDefaultFactory()
@@ -67,29 +78,43 @@ func main() {
 	var store core.VectorStore
 	store = core.NewVectorStore(persistenceBackend, indexFactory)
 
-	// Wrap with embedding support if enabled
-	if *enableEmbedding {
-		// Validate that model path is provided
-		if *modelPath == "" {
-			log.Fatalf("--model flag is required when --enable-embedding is set")
+	// Wrap with embedding support if enabled or configured
+	if *enableEmbedding || cfg.AI.Embedding.Engine != "" {
+		// Use configuration if no explicit model path provided
+		var modelConfig ai.ModelConfig
+		if cfg.AI.Embedding.Engine != "" {
+			modelConfig = cfg.AI.Embedding.ToModelConfig()
+		} else {
+			// Legacy support for command-line model specification
+			if *modelPath == "" {
+				log.Fatalf("--model flag is required when --enable-embedding is set")
+			}
+			modelConfig = ai.ModelConfig{
+				Type:                ai.ModelTypeONNX,
+				Path:                *modelPath,
+				Name:                cfg.AI.Embedding.Model,
+				MaxTokens:           512,
+				BatchSize:           32,
+				NormalizeEmbeddings: true,
+				PoolingStrategy:     "mean",
+			}
 		}
 
-		modelConfig := ai.ModelConfig{
-			Name:                *modelName,
-			MaxTokens:           512,
-			BatchSize:           32,
-			NormalizeEmbeddings: true,
-			PoolingStrategy:     "mean",
+		// Create embedding engine
+		embedder, err := embedding.CreateEngine(modelConfig)
+		if err != nil {
+			log.Fatalf("Failed to create embedding engine: %v", err)
 		}
 
-		embeddingStore, err := mcp.CreateEmbeddingStore(store, *modelPath, modelConfig)
+		embeddingStore, err := mcp.CreateEmbeddingStoreWithEngine(store, embedder)
 		if err != nil {
 			log.Fatalf("Failed to create embedding store: %v", err)
 		}
 		store = embeddingStore
 
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "Embedding support enabled with model: %s\n", *modelName)
+			fmt.Fprintf(os.Stderr, "Embedding support enabled with engine: %s, model: %s\n", 
+				cfg.AI.Embedding.Engine, cfg.AI.Embedding.Model)
 		}
 	}
 
@@ -114,8 +139,14 @@ func main() {
 	// Log startup message to stderr (MCP uses stdout for communication)
 	if *verbose {
 		fmt.Fprintf(os.Stderr, "EmbeddixDB MCP Server starting...\n")
-		fmt.Fprintf(os.Stderr, "Persistence: %s\n", *persistenceType)
-		fmt.Fprintf(os.Stderr, "Data path: %s\n", *dataPath)
+		fmt.Fprintf(os.Stderr, "Persistence: %s\n", cfg.Persistence.Type)
+		fmt.Fprintf(os.Stderr, "Data path: %s\n", cfg.Persistence.Path)
+		if cfg.AI.Embedding.Engine != "" {
+			fmt.Fprintf(os.Stderr, "AI Engine: %s\n", cfg.AI.Embedding.Engine)
+			if cfg.AI.Embedding.Engine == "ollama" {
+				fmt.Fprintf(os.Stderr, "Ollama Endpoint: %s\n", cfg.AI.Embedding.Ollama.Endpoint)
+			}
+		}
 	}
 
 	// Start serving

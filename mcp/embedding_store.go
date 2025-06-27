@@ -103,6 +103,14 @@ func (es *EmbeddingStore) Close() error {
 	return nil
 }
 
+// CreateEmbeddingStoreWithEngine creates an embedding store with a pre-configured engine
+func CreateEmbeddingStoreWithEngine(baseStore core.VectorStore, engine ai.EmbeddingEngine) (*EmbeddingStore, error) {
+	if engine == nil {
+		return nil, fmt.Errorf("embedding engine cannot be nil")
+	}
+	return NewEmbeddingStore(baseStore, engine), nil
+}
+
 // CreateEmbeddingStore is a convenience function to create an embedding store with default ONNX engine
 func CreateEmbeddingStore(baseStore core.VectorStore, modelPath string, config ai.ModelConfig) (*EmbeddingStore, error) {
 	// Create ONNX embedding engine

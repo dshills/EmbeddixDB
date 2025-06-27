@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -59,13 +60,22 @@ func setupTestHandler() (*APIHandler, *DefaultModelManager, core.VectorStore) {
 	modelManager := NewModelManager(2)
 	analyzer := &MockContentAnalyzer{}
 
+	// Set the engine factory to create mock engines
+	modelManager.SetEngineFactory(func(cfg ModelConfig) (EmbeddingEngine, error) {
+		return NewMockEmbeddingEngine(cfg), nil
+	})
+
 	// Load a test model
 	config := ModelConfig{
 		Name:      "test-model",
 		Type:      "onnx",
 		MaxTokens: 512,
+		Dimensions: 384,
 	}
-	modelManager.LoadModel(context.Background(), "test-model", config)
+	err := modelManager.LoadModel(context.Background(), "test-model", config)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load test model: %v", err))
+	}
 
 	// Create test collections
 	testCollections := []core.Collection{
@@ -128,6 +138,7 @@ func TestAPIHandler_HandleEmbed(t *testing.T) {
 	// Check response
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
+		t.Logf("Response body: %s", w.Body.String())
 	}
 
 	var response EmbedResponse
@@ -138,6 +149,9 @@ func TestAPIHandler_HandleEmbed(t *testing.T) {
 
 	if !response.Success {
 		t.Errorf("Expected success=true, got success=%v", response.Success)
+		if response.Message != "" {
+			t.Logf("Message: %s", response.Message)
+		}
 	}
 
 	if len(response.Vectors) != 2 {
@@ -251,6 +265,7 @@ func TestAPIHandler_HandleBatchEmbed(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
+		t.Logf("Response body: %s", w.Body.String())
 	}
 
 	var response EmbedResponse
@@ -261,6 +276,9 @@ func TestAPIHandler_HandleBatchEmbed(t *testing.T) {
 
 	if !response.Success {
 		t.Errorf("Expected success=true, got success=%v", response.Success)
+		if response.Message != "" {
+			t.Logf("Message: %s", response.Message)
+		}
 	}
 
 	if len(response.Vectors) != 2 {
@@ -268,7 +286,7 @@ func TestAPIHandler_HandleBatchEmbed(t *testing.T) {
 	}
 
 	// Check that document IDs are preserved
-	if response.Vectors[0].ID != "doc1" {
+	if len(response.Vectors) > 0 && response.Vectors[0].ID != "doc1" {
 		t.Errorf("Expected vector ID 'doc1', got '%s'", response.Vectors[0].ID)
 	}
 

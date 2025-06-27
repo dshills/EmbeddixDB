@@ -152,11 +152,11 @@ func (e *OllamaEmbeddingEngine) GetModelInfo() ai.ModelInfo {
 // Warm pre-initializes the engine
 func (e *OllamaEmbeddingEngine) Warm(ctx context.Context) error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	if e.initialized {
+		e.mu.Unlock()
 		return nil
 	}
+	e.mu.Unlock()
 
 	// Test connection and model availability
 	testText := "test"
@@ -165,7 +165,10 @@ func (e *OllamaEmbeddingEngine) Warm(ctx context.Context) error {
 		return NewEmbeddingError("Warm", e.config.Path, err, "failed to warm up Ollama engine", true)
 	}
 
+	e.mu.Lock()
 	e.initialized = true
+	e.mu.Unlock()
+	
 	return nil
 }
 

@@ -6,11 +6,20 @@ import (
 	"time"
 )
 
+// setupTestModelManager creates a model manager with mock engine factory
+func setupTestModelManager(maxModels int) *DefaultModelManager {
+	manager := NewModelManager(maxModels)
+	manager.SetEngineFactory(func(cfg ModelConfig) (EmbeddingEngine, error) {
+		return NewMockEmbeddingEngine(cfg), nil
+	})
+	return manager
+}
+
 func TestModelManager_LoadModel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping model loading test in short mode")
 	}
-	manager := NewModelManager(2)
+	manager := setupTestModelManager(2)
 	defer manager.Close()
 
 	config := ModelConfig{
@@ -53,7 +62,7 @@ func TestModelManager_LoadModel(t *testing.T) {
 }
 
 func TestModelManager_UnloadModel(t *testing.T) {
-	manager := NewModelManager(2)
+	manager := setupTestModelManager(2)
 	defer manager.Close()
 
 	config := ModelConfig{
@@ -88,7 +97,7 @@ func TestModelManager_UnloadModel(t *testing.T) {
 }
 
 func TestModelManager_EvictLeastUsed(t *testing.T) {
-	manager := NewModelManager(2) // Max 2 models
+	manager := setupTestModelManager(2) // Max 2 models
 	defer manager.Close()
 
 	// Load first model
@@ -152,7 +161,7 @@ func TestModelManager_EvictLeastUsed(t *testing.T) {
 }
 
 func TestModelManager_GetModelHealth(t *testing.T) {
-	manager := NewModelManager(2)
+	manager := setupTestModelManager(2)
 	defer manager.Close()
 
 	config := ModelConfig{
@@ -183,7 +192,7 @@ func TestModelManager_GetModelHealth(t *testing.T) {
 }
 
 func TestModelManager_ListModels(t *testing.T) {
-	manager := NewModelManager(2)
+	manager := setupTestModelManager(2)
 	defer manager.Close()
 
 	// Load two models
@@ -267,7 +276,7 @@ func TestManagerStats_EmptyStats(t *testing.T) {
 }
 
 func BenchmarkModelManager_GetEngine(b *testing.B) {
-	manager := NewModelManager(1)
+	manager := setupTestModelManager(1)
 	defer manager.Close()
 
 	config := ModelConfig{
@@ -294,7 +303,7 @@ func BenchmarkModelManager_GetEngine(b *testing.B) {
 
 func BenchmarkModelManager_LoadModel(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		manager := NewModelManager(1)
+		manager := setupTestModelManager(1)
 		config := ModelConfig{
 			Name: "bench-model",
 			Type: "onnx",

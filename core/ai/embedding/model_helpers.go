@@ -136,7 +136,7 @@ func ValidateModelFile(modelPath string) error {
 	info, err := os.Stat(modelPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("model file does not exist: %s", modelPath)
+			return NewEmbeddingError("validate", filepath.Base(modelPath), ErrModelNotFound, modelPath, false)
 		}
 		return fmt.Errorf("cannot access model file: %w", err)
 	}

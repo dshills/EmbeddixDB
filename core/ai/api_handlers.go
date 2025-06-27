@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dshills/EmbeddixDB/core"
@@ -132,7 +133,27 @@ func (h *APIHandler) HandleEmbed(w http.ResponseWriter, r *http.Request) {
 	// Generate embeddings
 	embeddings, err := engine.Embed(ctx, chunks)
 	if err != nil {
-		h.writeErrorResponse(w, fmt.Sprintf("Embedding failed: %v", err), http.StatusInternalServerError)
+		// Determine appropriate HTTP status based on error type
+		status := http.StatusInternalServerError
+		message := fmt.Sprintf("Embedding failed: %v", err)
+		
+		// Check error message for specific conditions
+		errStr := err.Error()
+		if strings.Contains(errStr, "model not found") {
+			status = http.StatusNotFound
+			message = "Requested embedding model not found"
+		} else if strings.Contains(errStr, "empty input") || strings.Contains(errStr, "invalid input") {
+			status = http.StatusBadRequest
+			message = "Invalid or empty input for embedding"
+		} else if strings.Contains(errStr, "resources exhausted") {
+			status = http.StatusServiceUnavailable
+			message = "Embedding service temporarily unavailable due to high load"
+		} else if strings.Contains(errStr, "timeout") {
+			status = http.StatusRequestTimeout
+			message = "Embedding generation timed out"
+		}
+		
+		h.writeErrorResponse(w, message, status)
 		return
 	}
 

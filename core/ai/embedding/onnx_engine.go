@@ -86,14 +86,14 @@ func NewONNXEmbeddingEngine(modelPath string, config ai.ModelConfig) (*ONNXEmbed
 	// Initialize tokenizer
 	tokenizer, err := NewTokenizer(config.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize tokenizer: %w", err)
+		return nil, NewEmbeddingError("initialize", config.Name, err, "failed to initialize tokenizer", false)
 	}
 	engine.tokenizer = tokenizer
 
 	// Load ONNX session
 	session, err := engine.createSession()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
+		return nil, err // Error already wrapped in createSession
 	}
 	engine.session = session
 
@@ -121,7 +121,7 @@ func (e *ONNXEmbeddingEngine) createSession() (ONNXSession, error) {
 				outputNames: []string{"embeddings"},
 			}, nil
 		}
-		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
+		return nil, err // Error already wrapped by NewRealONNXSession
 	}
 
 	return session, nil
@@ -129,6 +129,16 @@ func (e *ONNXEmbeddingEngine) createSession() (ONNXSession, error) {
 
 // Embed generates embeddings for the given content
 func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]float32, error) {
+	// Validate input
+	if len(content) == 0 {
+		return nil, NewEmbeddingError("embed", e.modelInfo.Name, ErrEmptyInput, "no content provided", false)
+	}
+	
+	// Check if session is initialized
+	if e.session == nil {
+		return nil, NewEmbeddingError("embed", e.modelInfo.Name, ErrModelNotLoaded, "session not initialized", false)
+	}
+	
 	start := time.Now()
 	defer func() {
 		e.stats.RecordInference(len(content), time.Since(start))
@@ -137,7 +147,7 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 	// Ensure model is warmed up
 	if !e.warmupDone {
 		if err := e.Warm(ctx); err != nil {
-			return nil, fmt.Errorf("model warmup failed: %w", err)
+			return nil, NewEmbeddingError("warmup", e.modelInfo.Name, err, "model warmup failed", false)
 		}
 	}
 
@@ -145,14 +155,14 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 	tokens, err := e.tokenizer.TokenizeBatch(content, e.config.MaxTokens)
 	if err != nil {
 		e.stats.RecordError()
-		return nil, fmt.Errorf("tokenization failed: %w", err)
+		return nil, NewEmbeddingError("tokenize", e.modelInfo.Name, err, "tokenization failed", false)
 	}
 
 	// Create input tensors
 	inputs, err := e.createInputTensors(tokens)
 	if err != nil {
 		e.stats.RecordError()
-		return nil, fmt.Errorf("failed to create input tensors: %w", err)
+		return nil, NewEmbeddingError("inference", e.modelInfo.Name, err, "failed to create input tensors", true)
 	}
 	defer func() {
 		for _, input := range inputs {
@@ -164,7 +174,7 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 	outputs, err := e.session.Run(inputs)
 	if err != nil {
 		e.stats.RecordError()
-		return nil, fmt.Errorf("inference failed: %w", err)
+		return nil, NewEmbeddingError("inference", e.modelInfo.Name, err, "inference failed", true)
 	}
 	defer func() {
 		for _, output := range outputs {
@@ -176,7 +186,7 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 	embeddings, err := e.extractEmbeddings(outputs[0])
 	if err != nil {
 		e.stats.RecordError()
-		return nil, fmt.Errorf("failed to extract embeddings: %w", err)
+		return nil, NewEmbeddingError("inference", e.modelInfo.Name, err, "failed to extract embeddings", false)
 	}
 
 	// Normalize if configured

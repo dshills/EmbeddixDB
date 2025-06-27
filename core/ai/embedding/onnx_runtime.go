@@ -21,25 +21,25 @@ func NewRealONNXSession(modelPath string) (*RealONNXSession, error) {
 	if !onnxruntime.IsInitialized() {
 		err := onnxruntime.InitializeEnvironment()
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize ONNX Runtime: %w", err)
+			return nil, NewEmbeddingError("initialize", "onnx", ErrModelInitFailed, err.Error(), false)
 		}
 	}
 
 	// Check if model file exists
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("model file does not exist: %s", modelPath)
+		return nil, NewEmbeddingError("load", filepath.Base(modelPath), ErrModelNotFound, modelPath, false)
 	}
 
 	// Get absolute path
 	absPath, err := filepath.Abs(modelPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		return nil, NewEmbeddingError("load", filepath.Base(modelPath), err, "failed to get absolute path", false)
 	}
 
 	// Get input/output info to determine names
 	inputInfo, outputInfo, err := onnxruntime.GetInputOutputInfo(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get model info: %w", err)
+		return nil, NewEmbeddingError("load", filepath.Base(modelPath), ErrCorruptedModel, err.Error(), false)
 	}
 
 	// Extract input and output names
@@ -56,7 +56,7 @@ func NewRealONNXSession(modelPath string) (*RealONNXSession, error) {
 	// Create session options for optimization
 	options, err := onnxruntime.NewSessionOptions()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session options: %w", err)
+		return nil, NewEmbeddingError("initialize", filepath.Base(modelPath), ErrModelInitFailed, err.Error(), false)
 	}
 	defer options.Destroy()
 

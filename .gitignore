@@ -81,3 +81,4 @@ server*.log
 *.temp
 
 EmbeddixDB
+embeddix-mcp

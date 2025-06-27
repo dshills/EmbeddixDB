@@ -22,12 +22,15 @@ help:
 
 ## build: Build the server binary
 build:
-	$(GO) build $(GOFLAGS) -o $(BINARY_NAME) ./cmd/server
+	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/server
 
 ## build-all: Build all binaries
 build-all:
-	$(GO) build $(GOFLAGS) -o $(BINARY_NAME) ./cmd/server
-	$(GO) build $(GOFLAGS) -o $(BINARY_NAME)-benchmark ./cmd/benchmark
+	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/server
+	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME)-benchmark ./cmd/benchmark
+
+install: build
+	cp ./build/$(BINARY_NAME) /Users/dshills/Development/Go/bin/.
 
 ## test: Run fast tests only (excludes integration tests and benchmarks)
 test:

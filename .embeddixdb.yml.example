@@ -1,0 +1,100 @@
+# EmbeddixDB Configuration File
+# Copy this file to ~/.embeddixdb.yml and customize as needed
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+
+# Persistence configuration
+persistence:
+  # Backend type: memory, bolt, or badger
+  type: "bolt"
+  path: "data/embeddix.db"
+  
+  # Additional options
+  options:
+    # Enable write-ahead logging
+    wal_enabled: true
+    wal_path: "data/wal"
+    
+    # BoltDB specific options
+    timeout: 1s
+    no_grow_sync: false
+    no_freelist_sync: false
+    
+    # BadgerDB specific options (when using badger)
+    # value_log_file_size: 1073741824
+    # value_log_max_entries: 1000000
+
+# AI and Embedding configuration
+ai:
+  embedding:
+    # Engine type: onnx, ollama
+    engine: "ollama"
+    
+    # Model name
+    model: "nomic-embed-text"
+    
+    # Batch processing settings
+    batch_size: 32
+    max_queue_size: 1000
+    
+    # Ollama configuration (when engine is "ollama")
+    ollama:
+      endpoint: "http://localhost:11434"
+      timeout: 30s
+      # api_key: "your-api-key-if-needed"
+    
+    # ONNX configuration (when engine is "onnx")
+    onnx:
+      model_path: "models/all-MiniLM-L6-v2.onnx"
+      use_gpu: false
+      num_threads: 4
+  
+  # Content analysis features
+  content_analysis:
+    enable_sentiment: true
+    enable_entities: true
+    enable_key_phrases: true
+    enable_language_detection: true
+  
+  # Query understanding
+  query_understanding:
+    enabled: true
+    confidence_threshold: 0.7
+
+# Vector store configuration
+vector_store:
+  # Default distance metric: cosine, l2, dot
+  default_distance_metric: "cosine"
+  
+  # Default index type: flat, hnsw
+  default_index_type: "hnsw"
+  
+  # HNSW index parameters
+  hnsw:
+    m: 16
+    ef_construction: 200
+    ef_search: 50
+    max_connections: 32
+  
+  # Cache configuration
+  cache:
+    enabled: true
+    max_size_mb: 512
+    ttl: 1h
+
+# Logging configuration
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  
+  # Format: json, text
+  format: "json"
+  
+  # Output: stdout, stderr, or file path
+  output: "stdout"

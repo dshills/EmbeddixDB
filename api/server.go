@@ -24,21 +24,23 @@ type Server struct {
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host         string        `json:"host"`
-	Port         int           `json:"port"`
-	ReadTimeout  time.Duration `json:"read_timeout"`
-	WriteTimeout time.Duration `json:"write_timeout"`
-	IdleTimeout  time.Duration `json:"idle_timeout"`
+	Host            string        `json:"host"`
+	Port            int           `json:"port"`
+	ReadTimeout     time.Duration `json:"read_timeout"`
+	WriteTimeout    time.Duration `json:"write_timeout"`
+	IdleTimeout     time.Duration `json:"idle_timeout"`
+	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 }
 
 // DefaultServerConfig returns default server configuration
 func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
-		Host:         "0.0.0.0",
-		Port:         8080,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Host:            "0.0.0.0",
+		Port:            8080,
+		ReadTimeout:     15 * time.Second,
+		WriteTimeout:    15 * time.Second,
+		IdleTimeout:     60 * time.Second,
+		ShutdownTimeout: 10 * time.Second,
 	}
 }
 

@@ -123,4 +123,3 @@ func TestErrorUnwrap(t *testing.T) {
 		t.Error("errors.Is should find the base error")
 	}
 }
-

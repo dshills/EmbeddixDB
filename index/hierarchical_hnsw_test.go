@@ -412,12 +412,12 @@ func TestHierarchicalClustering(t *testing.T) {
 
 	config := DefaultHierarchicalConfig(dimension)
 	config.NumFineClusters = numClusters
-	
+
 	index := NewHierarchicalHNSW(dimension, core.DistanceCosine, config)
 
 	// Generate clustered data
 	clusters := generateHierarchicalClusteredVectors(numClusters, numVectors/numClusters, dimension)
-	
+
 	// Add vectors
 	vectorID := 0
 	for _, cluster := range clusters {
@@ -433,7 +433,7 @@ func TestHierarchicalClustering(t *testing.T) {
 	// Verify clustering quality
 	quality := index.GetClusterQuality()
 	t.Logf("Cluster quality: %f", quality)
-	
+
 	if quality < 0.3 {
 		t.Errorf("Cluster quality too low: %f", quality)
 	}
@@ -443,7 +443,7 @@ func TestHierarchicalClustering(t *testing.T) {
 		if len(cluster) == 0 {
 			continue
 		}
-		
+
 		// Use first vector of cluster as query
 		query := cluster[0].Values
 		results, err := index.Search(query, 20, nil)
@@ -481,7 +481,7 @@ func TestHierarchicalRebalancing(t *testing.T) {
 	config.MaxVectorsPerCluster = 50
 	config.EnableIncrementalUpdates = true
 	config.RebalanceThreshold = 0.3
-	
+
 	index := NewHierarchicalHNSW(dimension, core.DistanceL2, config)
 
 	// Add initial vectors
@@ -516,7 +516,7 @@ func TestHierarchicalRebalancing(t *testing.T) {
 	// Verify balance
 	avgSize := float64(index.Size()) / float64(config.NumFineClusters)
 	maxImbalance := 0.0
-	
+
 	for _, size := range finalSizes {
 		imbalance := math.Abs(float64(size)-avgSize) / avgSize
 		if imbalance > maxImbalance {
@@ -525,7 +525,7 @@ func TestHierarchicalRebalancing(t *testing.T) {
 	}
 
 	t.Logf("Max imbalance: %f", maxImbalance)
-	
+
 	// Should be reasonably balanced
 	if maxImbalance > 0.5 {
 		t.Errorf("Clusters too imbalanced: %f", maxImbalance)
@@ -540,7 +540,7 @@ func TestHierarchicalConcurrency(t *testing.T) {
 
 	config := DefaultHierarchicalConfig(dimension)
 	config.NumFineClusters = 8
-	
+
 	index := NewHierarchicalHNSW(dimension, core.DistanceDot, config)
 
 	var wg sync.WaitGroup
@@ -551,7 +551,7 @@ func TestHierarchicalConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func(threadID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < vectorsPerThread; j++ {
 				vec := generateRandomVector(dimension)
 				vec.ID = fmt.Sprintf("vec_%d_%d", threadID, j)
@@ -568,7 +568,7 @@ func TestHierarchicalConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func(threadID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < 10; j++ {
 				query := generateRandomVector(dimension).Values
 				_, err := index.Search(query, 5, nil)
@@ -609,11 +609,11 @@ func generateRandomVector(dimension int) core.Vector {
 
 func generateHierarchicalClusteredVectors(numClusters, vectorsPerCluster, dimension int) [][]core.Vector {
 	clusters := make([][]core.Vector, numClusters)
-	
+
 	for i := 0; i < numClusters; i++ {
 		// Generate cluster center
 		center := generateRandomVector(dimension)
-		
+
 		// Generate vectors around center
 		cluster := make([]core.Vector, vectorsPerCluster)
 		for j := 0; j < vectorsPerCluster; j++ {
@@ -626,7 +626,7 @@ func generateHierarchicalClusteredVectors(numClusters, vectorsPerCluster, dimens
 		}
 		clusters[i] = cluster
 	}
-	
+
 	return clusters
 }
 

@@ -73,7 +73,7 @@ func main() {
 		if *modelPath == "" {
 			log.Fatalf("--model flag is required when --enable-embedding is set")
 		}
-		
+
 		modelConfig := ai.ModelConfig{
 			Name:                *modelName,
 			MaxTokens:           512,
@@ -132,4 +132,3 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Server stopped\n")
 	}
 }
-

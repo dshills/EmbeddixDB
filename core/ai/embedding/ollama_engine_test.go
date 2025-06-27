@@ -152,7 +152,7 @@ func TestOllamaEmbeddingEngine_Embed(t *testing.T) {
 
 			for i, embedding := range embeddings {
 				assert.Len(t, embedding, 768, "embedding %d should have 768 dimensions", i)
-				
+
 				// Check normalization
 				if config.NormalizeEmbeddings && len(embedding) > 0 {
 					var sum float32

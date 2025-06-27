@@ -136,7 +136,7 @@ func (h *APIHandler) HandleEmbed(w http.ResponseWriter, r *http.Request) {
 		// Determine appropriate HTTP status based on error type
 		status := http.StatusInternalServerError
 		message := fmt.Sprintf("Embedding failed: %v", err)
-		
+
 		// Check error message for specific conditions
 		errStr := err.Error()
 		if strings.Contains(errStr, "model not found") {
@@ -152,7 +152,7 @@ func (h *APIHandler) HandleEmbed(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusRequestTimeout
 			message = "Embedding generation timed out"
 		}
-		
+
 		h.writeErrorResponse(w, message, status)
 		return
 	}

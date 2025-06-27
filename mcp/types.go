@@ -53,37 +53,37 @@ type Tool struct {
 
 // InputSchema defines the schema for tool inputs
 type InputSchema struct {
-	Type       string                 `json:"type"`
-	Properties map[string]Property    `json:"properties"`
-	Required   []string               `json:"required,omitempty"`
-	OneOf      []map[string][]string  `json:"oneOf,omitempty"`
+	Type       string                `json:"type"`
+	Properties map[string]Property   `json:"properties"`
+	Required   []string              `json:"required,omitempty"`
+	OneOf      []map[string][]string `json:"oneOf,omitempty"`
 }
 
 // Property defines a property in the input schema
 type Property struct {
-	Type        string      `json:"type"`
-	Description string      `json:"description,omitempty"`
-	Default     interface{} `json:"default,omitempty"`
-	Enum        []string    `json:"enum,omitempty"`
-	Items       *Property   `json:"items,omitempty"`
+	Type        string              `json:"type"`
+	Description string              `json:"description,omitempty"`
+	Default     interface{}         `json:"default,omitempty"`
+	Enum        []string            `json:"enum,omitempty"`
+	Items       *Property           `json:"items,omitempty"`
 	Properties  map[string]Property `json:"properties,omitempty"`
-	Format      string      `json:"format,omitempty"`
-	Minimum     *float64    `json:"minimum,omitempty"`
-	Maximum     *float64    `json:"maximum,omitempty"`
+	Format      string              `json:"format,omitempty"`
+	Minimum     *float64            `json:"minimum,omitempty"`
+	Maximum     *float64            `json:"maximum,omitempty"`
 }
 
 // InitializeRequest for initialize method
 type InitializeRequest struct {
-	ProtocolVersion string                 `json:"protocolVersion"`
-	Capabilities    ClientCapabilities     `json:"capabilities"`
-	ClientInfo      ClientInfo             `json:"clientInfo"`
+	ProtocolVersion string             `json:"protocolVersion"`
+	Capabilities    ClientCapabilities `json:"capabilities"`
+	ClientInfo      ClientInfo         `json:"clientInfo"`
 }
 
 // InitializeResponse for initialize method response
 type InitializeResponse struct {
-	ProtocolVersion string                 `json:"protocolVersion"`
-	Capabilities    ServerCapabilities     `json:"capabilities"`
-	ServerInfo      ServerInfo             `json:"serverInfo"`
+	ProtocolVersion string             `json:"protocolVersion"`
+	Capabilities    ServerCapabilities `json:"capabilities"`
+	ServerInfo      ServerInfo         `json:"serverInfo"`
 }
 
 // ClientCapabilities defines what the client supports
@@ -199,7 +199,7 @@ type VectorData struct {
 
 // AddVectorsResult represents the result of adding vectors
 type AddVectorsResult struct {
-	Added   int      `json:"added"`
-	IDs     []string `json:"ids"`
-	Errors  []string `json:"errors,omitempty"`
+	Added  int      `json:"added"`
+	IDs    []string `json:"ids"`
+	Errors []string `json:"errors,omitempty"`
 }

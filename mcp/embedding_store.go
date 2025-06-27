@@ -113,4 +113,3 @@ func CreateEmbeddingStore(baseStore core.VectorStore, modelPath string, config a
 
 	return NewEmbeddingStore(baseStore, engine), nil
 }
-

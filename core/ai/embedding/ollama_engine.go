@@ -82,7 +82,7 @@ func (e *OllamaEmbeddingEngine) Embed(ctx context.Context, content []string) ([]
 	}
 
 	embeddings := make([][]float32, len(content))
-	
+
 	for i, text := range content {
 		embedding, err := e.embedSingle(ctx, text)
 		if err != nil {
@@ -118,7 +118,7 @@ func (e *OllamaEmbeddingEngine) EmbedBatch(ctx context.Context, content []string
 	}
 
 	embeddings := make([][]float32, len(content))
-	
+
 	// Process in batches (Ollama doesn't support batch embedding natively, so we process sequentially)
 	for i := 0; i < len(content); i += batchSize {
 		end := i + batchSize
@@ -239,13 +239,13 @@ func (e *OllamaEmbeddingEngine) updateStats(processed int, startTime time.Time) 
 	duration := time.Since(startTime)
 	e.stats.TotalInferences++
 	e.stats.TotalTokens += int64(processed)
-	
+
 	// Update recent latencies for P95 calculation
 	e.stats.RecentLatencies = append(e.stats.RecentLatencies, duration)
 	if len(e.stats.RecentLatencies) > 100 {
 		e.stats.RecentLatencies = e.stats.RecentLatencies[1:]
 	}
-	
+
 	// Calculate average latency
 	if e.stats.TotalInferences > 0 {
 		totalDuration := time.Duration(0)
@@ -254,7 +254,7 @@ func (e *OllamaEmbeddingEngine) updateStats(processed int, startTime time.Time) 
 		}
 		e.stats.AverageLatency = totalDuration / time.Duration(len(e.stats.RecentLatencies))
 	}
-	
+
 	// Update throughput
 	if duration > 0 {
 		e.stats.ThroughputTPS = float64(processed) / duration.Seconds()
@@ -267,16 +267,16 @@ func normalizeVector(v []float32) []float32 {
 	for _, val := range v {
 		sum += val * val
 	}
-	
+
 	if sum == 0 {
 		return v
 	}
-	
+
 	norm := float32(1.0 / math.Sqrt(float64(sum)))
 	normalized := make([]float32, len(v))
 	for i, val := range v {
 		normalized[i] = val * norm
 	}
-	
+
 	return normalized
 }

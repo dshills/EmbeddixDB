@@ -1,3 +1,4 @@
+//go:build cuda
 // +build cuda
 
 package gpu
@@ -13,13 +14,13 @@ package gpu
 // extern "C" __global__ void cosine_distance(
 //     const float* query, const float* vectors,
 //     float* distances, int dimension, int num_vectors) {
-//     
+//
 //     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Shared memory for query vector
 //     extern __shared__ float shared_query[];
-//     
+//
 //     // Load query into shared memory cooperatively
 //     int tid = threadIdx.x;
 //     while (tid < dimension) {
@@ -27,11 +28,11 @@ package gpu
 //         tid += blockDim.x;
 //     }
 //     __syncthreads();
-//     
+//
 //     // Compute dot product and norms
 //     float dot = 0.0f, norm_q = 0.0f, norm_v = 0.0f;
 //     const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     for (int i = 0; i < dimension; i++) {
 //         float q = shared_query[i];
 //         float v = vec_ptr[i];
@@ -39,7 +40,7 @@ package gpu
 //         norm_q += q * q;
 //         norm_v += v * v;
 //     }
-//     
+//
 //     // Compute cosine distance
 //     float cosine_sim = dot / (sqrtf(norm_q) * sqrtf(norm_v) + 1e-8f);
 //     distances[idx] = 1.0f - cosine_sim;
@@ -50,13 +51,13 @@ package gpu
 // extern "C" __global__ void l2_distance(
 //     const float* query, const float* vectors,
 //     float* distances, int dimension, int num_vectors) {
-//     
+//
 //     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Shared memory for query vector
 //     extern __shared__ float shared_query[];
-//     
+//
 //     // Load query into shared memory cooperatively
 //     int tid = threadIdx.x;
 //     while (tid < dimension) {
@@ -64,11 +65,11 @@ package gpu
 //         tid += blockDim.x;
 //     }
 //     __syncthreads();
-//     
+//
 //     // Compute L2 distance
 //     float sum = 0.0f;
 //     const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     // Unroll loop for better performance
 //     int i = 0;
 //     for (; i < dimension - 3; i += 4) {
@@ -78,13 +79,13 @@ package gpu
 //         float d3 = shared_query[i+3] - vec_ptr[i+3];
 //         sum += d0*d0 + d1*d1 + d2*d2 + d3*d3;
 //     }
-//     
+//
 //     // Handle remaining elements
 //     for (; i < dimension; i++) {
 //         float diff = shared_query[i] - vec_ptr[i];
 //         sum += diff * diff;
 //     }
-//     
+//
 //     distances[idx] = sqrtf(sum);
 // }
 // )";
@@ -93,13 +94,13 @@ package gpu
 // extern "C" __global__ void dot_product(
 //     const float* query, const float* vectors,
 //     float* distances, int dimension, int num_vectors) {
-//     
+//
 //     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Shared memory for query vector
 //     extern __shared__ float shared_query[];
-//     
+//
 //     // Load query into shared memory cooperatively
 //     int tid = threadIdx.x;
 //     while (tid < dimension) {
@@ -107,11 +108,11 @@ package gpu
 //         tid += blockDim.x;
 //     }
 //     __syncthreads();
-//     
+//
 //     // Compute dot product
 //     float dot = 0.0f;
 //     const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     // Vectorized computation
 //     int i = 0;
 //     for (; i < dimension - 3; i += 4) {
@@ -120,12 +121,12 @@ package gpu
 //         dot += shared_query[i+2] * vec_ptr[i+2];
 //         dot += shared_query[i+3] * vec_ptr[i+3];
 //     }
-//     
+//
 //     // Handle remaining elements
 //     for (; i < dimension; i++) {
 //         dot += shared_query[i] * vec_ptr[i];
 //     }
-//     
+//
 //     distances[idx] = -dot; // Negative for similarity to distance
 // }
 // )";
@@ -184,8 +185,8 @@ import (
 
 // CUDAKernelManager manages CUDA kernels and operations
 type CUDAKernelManager struct {
-	device            int
-	compiledKernels   map[string]unsafe.Pointer
+	device             int
+	compiledKernels    map[string]unsafe.Pointer
 	maxThreadsPerBlock int
 	maxSharedMemory    int
 	initialized        bool
@@ -326,7 +327,7 @@ func (m *CUDAKernelManager) LaunchCosineDistanceKernel(
 
 	// TODO: Implement actual kernel launch using NVRTC or pre-compiled PTX
 	// For now, this is a placeholder that would need proper CUDA kernel compilation
-	
+
 	return fmt.Errorf("kernel launch not yet implemented - requires NVRTC integration")
 }
 
@@ -353,7 +354,7 @@ func (m *CUDAKernelManager) LaunchL2DistanceKernel(
 	// TODO: Implement actual kernel launch
 	_ = gridSize
 	_ = sharedMemSize
-	
+
 	return fmt.Errorf("kernel launch not yet implemented - requires NVRTC integration")
 }
 
@@ -380,7 +381,7 @@ func (m *CUDAKernelManager) LaunchDotProductKernel(
 	// TODO: Implement actual kernel launch
 	_ = gridSize
 	_ = sharedMemSize
-	
+
 	return fmt.Errorf("kernel launch not yet implemented - requires NVRTC integration")
 }
 
@@ -391,7 +392,7 @@ func (m *CUDAKernelManager) Cleanup() error {
 	}
 
 	// TODO: Clean up compiled kernels
-	
+
 	m.initialized = false
 	return nil
 }
@@ -413,7 +414,7 @@ func (m *CUDAKernelManager) GetDeviceInfo() (DeviceInfo, error) {
 	var name [256]C.char
 	var totalMem C.size_t
 	var major, minor C.int
-	
+
 	if err := checkCUDAError(C.cuda_get_device_properties(
 		C.int(m.device), &name[0], &totalMem, &major, &minor)); err != nil {
 		return DeviceInfo{}, err

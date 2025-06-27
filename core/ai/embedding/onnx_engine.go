@@ -133,12 +133,12 @@ func (e *ONNXEmbeddingEngine) Embed(ctx context.Context, content []string) ([][]
 	if len(content) == 0 {
 		return nil, NewEmbeddingError("embed", e.modelInfo.Name, ErrEmptyInput, "no content provided", false)
 	}
-	
+
 	// Check if session is initialized
 	if e.session == nil {
 		return nil, NewEmbeddingError("embed", e.modelInfo.Name, ErrModelNotLoaded, "session not initialized", false)
 	}
-	
+
 	start := time.Now()
 	defer func() {
 		e.stats.RecordInference(len(content), time.Since(start))

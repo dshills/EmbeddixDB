@@ -1,3 +1,4 @@
+//go:build cuda
 // +build cuda
 
 package gpu
@@ -14,13 +15,13 @@ import (
 
 // RealCUDAEngine implements GPU acceleration using actual CUDA
 type RealCUDAEngine struct {
-	config         GPUConfig
-	kernelManager  *CUDAKernelManager
-	memoryManager  *CUDAMemoryManager
-	streamManager  *CUDAStreamManager
-	stats          PerformanceStats
-	initialized    bool
-	mu             sync.RWMutex
+	config        GPUConfig
+	kernelManager *CUDAKernelManager
+	memoryManager *CUDAMemoryManager
+	streamManager *CUDAStreamManager
+	stats         PerformanceStats
+	initialized   bool
+	mu            sync.RWMutex
 }
 
 // CUDAMemoryManager manages GPU memory allocations
@@ -33,17 +34,17 @@ type CUDAMemoryManager struct {
 
 // CUDAAllocation represents a GPU memory allocation
 type CUDAAllocation struct {
-	ptr       unsafe.Pointer
-	size      int64
-	inUse     bool
-	lastUsed  time.Time
+	ptr      unsafe.Pointer
+	size     int64
+	inUse    bool
+	lastUsed time.Time
 }
 
 // CUDAStreamManager manages CUDA streams for concurrent operations
 type CUDAStreamManager struct {
-	streams        []*CUDAStreamHandle
-	nextStream     int
-	mu             sync.Mutex
+	streams    []*CUDAStreamHandle
+	nextStream int
+	mu         sync.Mutex
 }
 
 // CUDAStreamHandle represents a CUDA stream
@@ -117,7 +118,7 @@ func (e *RealCUDAEngine) ComputeDistances(
 	startTime := time.Now()
 	dimension := len(query)
 	numVectors := len(vectors) / dimension
-	
+
 	if numVectors == 0 {
 		return []float32{}, nil
 	}
@@ -250,7 +251,7 @@ func (e *RealCUDAEngine) allocateMemory(name string, size int64) (unsafe.Pointer
 	if e.memoryManager.totalAllocated+size > e.memoryManager.maxMemory {
 		// Try to free unused allocations
 		e.freeUnusedMemory()
-		
+
 		if e.memoryManager.totalAllocated+size > e.memoryManager.maxMemory {
 			return nil, fmt.Errorf("out of GPU memory")
 		}
@@ -287,7 +288,7 @@ func (e *RealCUDAEngine) freeMemory(name string) {
 // freeUnusedMemory frees memory allocations not in use
 func (e *RealCUDAEngine) freeUnusedMemory() {
 	cutoff := time.Now().Add(-time.Minute)
-	
+
 	for name, alloc := range e.memoryManager.allocations {
 		if !alloc.inUse && alloc.lastUsed.Before(cutoff) {
 			e.kernelManager.FreeMemory(alloc.ptr)
@@ -340,19 +341,19 @@ func (m *CUDAMemoryInfo) CopyFromDevice(data []float32) error {
 func (e *RealCUDAEngine) GetStats() PerformanceStats {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	
+
 	stats := e.stats
 	if stats.OperationsCompleted > 0 {
 		stats.AverageComputeTime = stats.TotalComputeTime / time.Duration(stats.OperationsCompleted)
 		stats.Throughput = float64(stats.VectorsProcessed) / stats.TotalComputeTime.Seconds()
 	}
-	
+
 	// Add memory stats
 	e.memoryManager.mu.Lock()
 	stats.MemoryUsed = e.memoryManager.totalAllocated
 	stats.MemoryTotal = e.memoryManager.maxMemory
 	e.memoryManager.mu.Unlock()
-	
+
 	return stats
 }
 
@@ -393,6 +394,6 @@ func (e *RealCUDAEngine) GetDeviceInfo() (DeviceInfo, error) {
 	if !e.initialized {
 		return DeviceInfo{}, ErrGPUNotInitialized
 	}
-	
+
 	return e.kernelManager.GetDeviceInfo()
 }

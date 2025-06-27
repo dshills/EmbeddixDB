@@ -39,11 +39,11 @@ type Cluster struct {
 
 // ClusteringResult contains the results of k-means clustering
 type ClusteringResult struct {
-	Clusters     []Cluster
-	Assignments  map[string]int
-	Iterations   int
-	Inertia      float64 // Total within-cluster sum of squares
-	ElapsedTime  time.Duration
+	Clusters    []Cluster
+	Assignments map[string]int
+	Iterations  int
+	Inertia     float64 // Total within-cluster sum of squares
+	ElapsedTime time.Duration
 }
 
 // NewKMeansClusterer creates a new balanced k-means clusterer
@@ -168,7 +168,7 @@ func (kmc *KMeansClusterer) Cluster(vectors []core.Vector) (*ClusteringResult, e
 // initializeCentroidsKMeansPlusPlus uses k-means++ initialization for better convergence
 func (kmc *KMeansClusterer) initializeCentroidsKMeansPlusPlus(vectors []core.Vector, rng *rand.Rand) ([][]float32, error) {
 	centroids := make([][]float32, kmc.k)
-	
+
 	// Create vector map for efficient lookup
 	vectorMap := make(map[string][]float32)
 	for _, v := range vectors {
@@ -217,7 +217,7 @@ func (kmc *KMeansClusterer) initializeCentroidsKMeansPlusPlus(vectors []core.Vec
 // assignVectorsBalanced assigns vectors to clusters with size balancing
 func (kmc *KMeansClusterer) assignVectorsBalanced(vectors []core.Vector, centroids [][]float32, currentAssignments map[string]int) map[string]int {
 	assignments := make(map[string]int)
-	
+
 	// If no balancing, use standard assignment
 	if kmc.balanceFactor == 0.0 {
 		for _, v := range vectors {
@@ -229,13 +229,13 @@ func (kmc *KMeansClusterer) assignVectorsBalanced(vectors []core.Vector, centroi
 	// Balanced assignment using the Hungarian algorithm approximation
 	targetSize := len(vectors) / kmc.k
 	clusterSizes := make([]int, kmc.k)
-	
+
 	// Sort vectors by distance to their nearest centroid
 	type vectorDist struct {
 		vector    core.Vector
 		distances []float32
 	}
-	
+
 	vdists := make([]vectorDist, len(vectors))
 	for i, v := range vectors {
 		vd := vectorDist{
@@ -250,13 +250,13 @@ func (kmc *KMeansClusterer) assignVectorsBalanced(vectors []core.Vector, centroi
 
 	// Assign vectors to clusters with capacity constraints
 	assigned := make(map[string]bool)
-	
+
 	// First pass: assign vectors to their nearest available cluster
 	for _, vd := range vdists {
 		if assigned[vd.vector.ID] {
 			continue
 		}
-		
+
 		// Find nearest cluster with capacity
 		indices := make([]int, kmc.k)
 		for i := range indices {
@@ -265,7 +265,7 @@ func (kmc *KMeansClusterer) assignVectorsBalanced(vectors []core.Vector, centroi
 		sort.Slice(indices, func(i, j int) bool {
 			return vd.distances[indices[i]] < vd.distances[indices[j]]
 		})
-		
+
 		for _, clusterID := range indices {
 			maxSize := targetSize + int(float64(targetSize)*kmc.balanceFactor)
 			if clusterSizes[clusterID] < maxSize {
@@ -427,7 +427,7 @@ func (kmc *KMeansClusterer) GetClusterQuality(result *ClusteringResult, vectors 
 
 		// Silhouette coefficient
 		if cm.IntraClusterDistance > 0 {
-			cm.Silhouette = (cm.InterClusterDistance - cm.IntraClusterDistance) / 
+			cm.Silhouette = (cm.InterClusterDistance - cm.IntraClusterDistance) /
 				math.Max(cm.InterClusterDistance, cm.IntraClusterDistance)
 		}
 

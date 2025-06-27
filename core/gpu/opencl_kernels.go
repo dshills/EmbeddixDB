@@ -1,3 +1,4 @@
+//go:build opencl
 // +build opencl
 
 package gpu
@@ -15,13 +16,13 @@ package gpu
 //     __global float* distances,
 //     const int dimension,
 //     const int num_vectors) {
-//     
+//
 //     int idx = get_global_id(0);
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Local memory for query vector
 //     __local float local_query[256]; // Adjust size as needed
-//     
+//
 //     // Load query into local memory cooperatively
 //     int local_id = get_local_id(0);
 //     int local_size = get_local_size(0);
@@ -29,11 +30,11 @@ package gpu
 //         local_query[i] = query[i];
 //     }
 //     barrier(CLK_LOCAL_MEM_FENCE);
-//     
+//
 //     // Compute dot product and norms
 //     float dot = 0.0f, norm_q = 0.0f, norm_v = 0.0f;
 //     __global const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     for (int i = 0; i < dimension; i++) {
 //         float q = local_query[i];
 //         float v = vec_ptr[i];
@@ -41,7 +42,7 @@ package gpu
 //         norm_q += q * q;
 //         norm_v += v * v;
 //     }
-//     
+//
 //     // Compute cosine distance
 //     float cosine_sim = dot / (sqrt(norm_q) * sqrt(norm_v) + 1e-8f);
 //     distances[idx] = 1.0f - cosine_sim;
@@ -55,13 +56,13 @@ package gpu
 //     __global float* distances,
 //     const int dimension,
 //     const int num_vectors) {
-//     
+//
 //     int idx = get_global_id(0);
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Local memory for query vector
 //     __local float local_query[256]; // Adjust size as needed
-//     
+//
 //     // Load query into local memory cooperatively
 //     int local_id = get_local_id(0);
 //     int local_size = get_local_size(0);
@@ -69,11 +70,11 @@ package gpu
 //         local_query[i] = query[i];
 //     }
 //     barrier(CLK_LOCAL_MEM_FENCE);
-//     
+//
 //     // Compute L2 distance
 //     float sum = 0.0f;
 //     __global const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     // Unroll loop for better performance
 //     int i = 0;
 //     for (; i < dimension - 3; i += 4) {
@@ -83,13 +84,13 @@ package gpu
 //         float d3 = local_query[i+3] - vec_ptr[i+3];
 //         sum += d0*d0 + d1*d1 + d2*d2 + d3*d3;
 //     }
-//     
+//
 //     // Handle remaining elements
 //     for (; i < dimension; i++) {
 //         float diff = local_query[i] - vec_ptr[i];
 //         sum += diff * diff;
 //     }
-//     
+//
 //     distances[idx] = sqrt(sum);
 // }
 // )";
@@ -101,13 +102,13 @@ package gpu
 //     __global float* distances,
 //     const int dimension,
 //     const int num_vectors) {
-//     
+//
 //     int idx = get_global_id(0);
 //     if (idx >= num_vectors) return;
-//     
+//
 //     // Local memory for query vector
 //     __local float local_query[256]; // Adjust size as needed
-//     
+//
 //     // Load query into local memory cooperatively
 //     int local_id = get_local_id(0);
 //     int local_size = get_local_size(0);
@@ -115,11 +116,11 @@ package gpu
 //         local_query[i] = query[i];
 //     }
 //     barrier(CLK_LOCAL_MEM_FENCE);
-//     
+//
 //     // Compute dot product
 //     float dot = 0.0f;
 //     __global const float* vec_ptr = vectors + idx * dimension;
-//     
+//
 //     // Vectorized computation
 //     int i = 0;
 //     for (; i < dimension - 3; i += 4) {
@@ -128,12 +129,12 @@ package gpu
 //         dot += local_query[i+2] * vec_ptr[i+2];
 //         dot += local_query[i+3] * vec_ptr[i+3];
 //     }
-//     
+//
 //     // Handle remaining elements
 //     for (; i < dimension; i++) {
 //         dot += local_query[i] * vec_ptr[i];
 //     }
-//     
+//
 //     distances[idx] = -dot; // Negative for similarity to distance
 // }
 // )";
@@ -146,13 +147,13 @@ import (
 
 // OpenCLKernelManager manages OpenCL kernels and operations
 type OpenCLKernelManager struct {
-	platform       C.cl_platform_id
-	device         C.cl_device_id
-	context        C.cl_context
-	commandQueue   C.cl_command_queue
-	kernels        map[string]C.cl_kernel
-	programs       map[string]C.cl_program
-	initialized    bool
+	platform         C.cl_platform_id
+	device           C.cl_device_id
+	context          C.cl_context
+	commandQueue     C.cl_command_queue
+	kernels          map[string]C.cl_kernel
+	programs         map[string]C.cl_program
+	initialized      bool
 	maxWorkGroupSize int
 	maxLocalMemory   int
 }
@@ -179,7 +180,7 @@ func NewOpenCLKernelManager() (*OpenCLKernelManager, error) {
 // initialize sets up OpenCL platform, device and context
 func (m *OpenCLKernelManager) initialize() error {
 	var err C.cl_int
-	
+
 	// Get platform
 	err = C.clGetPlatformIDs(1, &m.platform, nil)
 	if err != C.CL_SUCCESS {
@@ -246,11 +247,11 @@ func (m *OpenCLKernelManager) compileKernels() error {
 // compileKernel compiles a single OpenCL kernel
 func (m *OpenCLKernelManager) compileKernel(source string, kernelName string) (C.cl_program, C.cl_kernel, error) {
 	var err C.cl_int
-	
+
 	// Create program from source
 	sourcePtr := C.CString(source)
 	defer C.free(unsafe.Pointer(sourcePtr))
-	
+
 	sourceLen := C.size_t(len(source))
 	program := C.clCreateProgramWithSource(m.context, 1, &sourcePtr, &sourceLen, &err)
 	if err != C.CL_SUCCESS {
@@ -263,10 +264,10 @@ func (m *OpenCLKernelManager) compileKernel(source string, kernelName string) (C
 		// Get build log
 		var logSize C.size_t
 		C.clGetProgramBuildInfo(program, m.device, C.CL_PROGRAM_BUILD_LOG, 0, nil, &logSize)
-		
+
 		log := make([]byte, logSize)
 		C.clGetProgramBuildInfo(program, m.device, C.CL_PROGRAM_BUILD_LOG, logSize, unsafe.Pointer(&log[0]), nil)
-		
+
 		C.clReleaseProgram(program)
 		return nil, nil, fmt.Errorf("failed to build program: %s", string(log))
 	}
@@ -274,7 +275,7 @@ func (m *OpenCLKernelManager) compileKernel(source string, kernelName string) (C
 	// Create kernel
 	kernelNameC := C.CString(kernelName)
 	defer C.free(unsafe.Pointer(kernelNameC))
-	
+
 	kernel := C.clCreateKernel(program, kernelNameC, &err)
 	if err != C.CL_SUCCESS {
 		C.clReleaseProgram(program)
@@ -327,7 +328,7 @@ func (m *OpenCLKernelManager) WriteBuffer(buffer unsafe.Pointer, data []float32)
 	size := len(data) * 4 // float32 = 4 bytes
 	err := C.clEnqueueWriteBuffer(m.commandQueue, C.cl_mem(buffer), C.CL_TRUE,
 		0, C.size_t(size), unsafe.Pointer(&data[0]), 0, nil, nil)
-	
+
 	if err != C.CL_SUCCESS {
 		return fmt.Errorf("failed to write buffer: %d", int(err))
 	}
@@ -344,7 +345,7 @@ func (m *OpenCLKernelManager) ReadBuffer(buffer unsafe.Pointer, data []float32) 
 	size := len(data) * 4 // float32 = 4 bytes
 	err := C.clEnqueueReadBuffer(m.commandQueue, C.cl_mem(buffer), C.CL_TRUE,
 		0, C.size_t(size), unsafe.Pointer(&data[0]), 0, nil, nil)
-	
+
 	if err != C.CL_SUCCESS {
 		return fmt.Errorf("failed to read buffer: %d", int(err))
 	}

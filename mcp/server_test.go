@@ -19,12 +19,12 @@ func TestServerInitialize(t *testing.T) {
 		t.Fatalf("Failed to create persistence backend: %v", err)
 	}
 	defer backend.Close()
-	
+
 	indexFactory := index.NewDefaultFactory()
 	store := core.NewVectorStore(backend, indexFactory)
-	
+
 	server := NewServer(store)
-	
+
 	// Test initialize request
 	initReq := InitializeRequest{
 		ProtocolVersion: ProtocolVersion,
@@ -34,18 +34,18 @@ func TestServerInitialize(t *testing.T) {
 			Version: "1.0.0",
 		},
 	}
-	
+
 	params, _ := json.Marshal(initReq)
-	
+
 	resp, err := server.handleInitialize(context.Background(), params)
 	if err != nil {
 		t.Fatalf("Initialize failed: %v", err)
 	}
-	
+
 	if resp.ProtocolVersion != ProtocolVersion {
 		t.Errorf("Expected protocol version %s, got %s", ProtocolVersion, resp.ProtocolVersion)
 	}
-	
+
 	if resp.ServerInfo.Name != "EmbeddixDB MCP Server" {
 		t.Errorf("Unexpected server name: %s", resp.ServerInfo.Name)
 	}
@@ -53,7 +53,7 @@ func TestServerInitialize(t *testing.T) {
 
 func TestToolsList(t *testing.T) {
 	tools := GetTools()
-	
+
 	// Check that we have the expected tools
 	expectedTools := []string{
 		"search_vectors",
@@ -64,11 +64,11 @@ func TestToolsList(t *testing.T) {
 		"list_collections",
 		"delete_collection",
 	}
-	
+
 	if len(tools) != len(expectedTools) {
 		t.Errorf("Expected %d tools, got %d", len(expectedTools), len(tools))
 	}
-	
+
 	// Check each tool exists
 	for _, expectedName := range expectedTools {
 		found := false
@@ -93,35 +93,35 @@ func TestHandleRequest(t *testing.T) {
 		t.Fatalf("Failed to create persistence backend: %v", err)
 	}
 	defer backend.Close()
-	
+
 	indexFactory := index.NewDefaultFactory()
 	store := core.NewVectorStore(backend, indexFactory)
-	
+
 	server := NewServer(store)
-	
+
 	// Test tools/list request
 	req := &Request{
 		JSONRPC: JSONRPCVersion,
 		Method:  "tools/list",
 		ID:      1,
 	}
-	
+
 	resp := server.handleRequest(context.Background(), req)
-	
+
 	if resp.Error != nil {
 		t.Fatalf("Request failed: %v", resp.Error)
 	}
-	
+
 	if resp.Result == nil {
 		t.Fatal("Expected result, got nil")
 	}
-	
+
 	// Check the result type
 	result, ok := resp.Result.(ToolsListResponse)
 	if !ok {
 		t.Fatal("Expected ToolsListResponse")
 	}
-	
+
 	if len(result.Tools) == 0 {
 		t.Error("Expected tools in response")
 	}
@@ -136,12 +136,12 @@ func TestCreateAndSearchVectors(t *testing.T) {
 		t.Fatalf("Failed to create persistence backend: %v", err)
 	}
 	defer backend.Close()
-	
+
 	indexFactory := index.NewDefaultFactory()
 	store := core.NewVectorStore(backend, indexFactory)
-	
+
 	ctx := context.Background()
-	
+
 	// Create a collection
 	createHandler := &CreateCollectionHandler{store: store}
 	createArgs := map[string]interface{}{
@@ -149,16 +149,16 @@ func TestCreateAndSearchVectors(t *testing.T) {
 		"dimension": float64(3),
 		"distance":  "cosine",
 	}
-	
+
 	resp, err := createHandler.Execute(ctx, createArgs)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
-	
+
 	if resp.IsError {
 		t.Fatal("Create collection returned error")
 	}
-	
+
 	// Add vectors
 	addHandler := &AddVectorsHandler{store: store}
 	addArgs := map[string]interface{}{
@@ -180,34 +180,34 @@ func TestCreateAndSearchVectors(t *testing.T) {
 			},
 		},
 	}
-	
+
 	resp, err = addHandler.Execute(ctx, addArgs)
 	if err != nil {
 		t.Fatalf("Failed to add vectors: %v", err)
 	}
-	
+
 	if resp.IsError {
 		t.Fatal("Add vectors returned error")
 	}
-	
+
 	// Search vectors
 	searchHandler := &SearchVectorsHandler{store: store}
 	searchArgs := map[string]interface{}{
-		"collection": "test-collection",
-		"vector":     []float32{0.9, 0.1, 0.0},
-		"limit":      2,
+		"collection":      "test-collection",
+		"vector":          []float32{0.9, 0.1, 0.0},
+		"limit":           2,
 		"includeMetadata": true,
 	}
-	
+
 	resp, err = searchHandler.Execute(ctx, searchArgs)
 	if err != nil {
 		t.Fatalf("Failed to search vectors: %v", err)
 	}
-	
+
 	if resp.IsError {
 		t.Fatal("Search vectors returned error")
 	}
-	
+
 	// Verify we got results
 	if len(resp.Content) < 2 {
 		t.Fatal("Expected at least 2 content items in search response")

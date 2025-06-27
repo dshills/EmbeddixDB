@@ -20,18 +20,18 @@ type ClusterRebalancer struct {
 // RebalancerConfig configures the cluster rebalancing behavior
 type RebalancerConfig struct {
 	// Rebalancing triggers
-	SizeImbalanceThreshold   float64       // Max allowed size imbalance ratio
-	QualityThreshold         float64       // Min acceptable search quality
-	MinTimeBetweenRebalance  time.Duration // Cooldown period between rebalances
-	
+	SizeImbalanceThreshold  float64       // Max allowed size imbalance ratio
+	QualityThreshold        float64       // Min acceptable search quality
+	MinTimeBetweenRebalance time.Duration // Cooldown period between rebalances
+
 	// Rebalancing strategy
-	MaxVectorsToMove         int           // Max vectors to move in one rebalance
-	TargetClusterSize        int           // Ideal cluster size
-	AllowSplitMerge          bool          // Allow cluster splitting/merging
-	
+	MaxVectorsToMove  int  // Max vectors to move in one rebalance
+	TargetClusterSize int  // Ideal cluster size
+	AllowSplitMerge   bool // Allow cluster splitting/merging
+
 	// Performance tuning
-	BackgroundRebalance      bool          // Run rebalancing in background
-	RebalanceBatchSize       int           // Batch size for moving vectors
+	BackgroundRebalance bool // Run rebalancing in background
+	RebalanceBatchSize  int  // Batch size for moving vectors
 }
 
 // ClusterStats tracks statistics for a single cluster
@@ -89,7 +89,7 @@ func (cr *ClusterRebalancer) UpdateClusterStats(clusterID int, size int, vectorI
 
 	stats.Size = size
 	stats.LastUpdated = time.Now()
-	
+
 	// Update vector IDs
 	stats.VectorIDs = make(map[string]bool)
 	for _, id := range vectorIDs {
@@ -160,7 +160,7 @@ func (cr *ClusterRebalancer) checkSizeImbalance() (bool, string) {
 	}
 
 	if maxImbalance > cr.config.SizeImbalanceThreshold {
-		return true, fmt.Sprintf("size imbalance %.2f exceeds threshold %.2f", 
+		return true, fmt.Sprintf("size imbalance %.2f exceeds threshold %.2f",
 			maxImbalance, cr.config.SizeImbalanceThreshold)
 	}
 
@@ -235,7 +235,7 @@ func (cr *ClusterRebalancer) PlanRebalancing() *RebalancePlan {
 
 			toStats := cr.clusterStats[toCluster]
 			deficit := int(avgSize - float64(toStats.Size))
-			
+
 			// Move vectors
 			moveCount := minInt(excessVectors, deficit)
 			moveCount = minInt(moveCount, cr.config.MaxVectorsToMove-vectorsMoved)
@@ -243,7 +243,7 @@ func (cr *ClusterRebalancer) PlanRebalancing() *RebalancePlan {
 			if moveCount > 0 {
 				// Select vectors to move (simplified - in practice would use distance-based selection)
 				vectorsToMove := cr.selectVectorsToMove(fromCluster, toCluster, moveCount)
-				
+
 				for _, vectorID := range vectorsToMove {
 					plan.Moves = append(plan.Moves, VectorMove{
 						VectorID:    vectorID,
@@ -270,7 +270,7 @@ func (cr *ClusterRebalancer) PlanRebalancing() *RebalancePlan {
 func (cr *ClusterRebalancer) selectVectorsToMove(fromCluster, toCluster int, count int) []string {
 	fromStats := cr.clusterStats[fromCluster]
 	vectors := make([]string, 0, count)
-	
+
 	// Simple selection - take first N vectors
 	// In practice, would select based on distance to target cluster centroid
 	i := 0
@@ -281,14 +281,14 @@ func (cr *ClusterRebalancer) selectVectorsToMove(fromCluster, toCluster int, cou
 		vectors = append(vectors, vectorID)
 		i++
 	}
-	
+
 	return vectors
 }
 
 // planClusterSplits plans splitting of oversized clusters
 func (cr *ClusterRebalancer) planClusterSplits(oversizedClusters []int) []ClusterSplit {
 	splits := make([]ClusterSplit, 0)
-	
+
 	for _, clusterID := range oversizedClusters {
 		stats := cr.clusterStats[clusterID]
 		if stats.Size > cr.config.TargetClusterSize*2 {
@@ -299,25 +299,25 @@ func (cr *ClusterRebalancer) planClusterSplits(oversizedClusters []int) []Cluste
 			})
 		}
 	}
-	
+
 	return splits
 }
 
 // planClusterMerges plans merging of undersized clusters
 func (cr *ClusterRebalancer) planClusterMerges(undersizedClusters []int) []ClusterMerge {
 	merges := make([]ClusterMerge, 0)
-	
+
 	// Sort by size to merge smallest clusters first
 	sort.Slice(undersizedClusters, func(i, j int) bool {
-		return cr.clusterStats[undersizedClusters[i]].Size < 
-			   cr.clusterStats[undersizedClusters[j]].Size
+		return cr.clusterStats[undersizedClusters[i]].Size <
+			cr.clusterStats[undersizedClusters[j]].Size
 	})
-	
+
 	// Pair up clusters for merging
 	for i := 0; i < len(undersizedClusters)-1; i += 2 {
 		cluster1 := undersizedClusters[i]
 		cluster2 := undersizedClusters[i+1]
-		
+
 		combinedSize := cr.clusterStats[cluster1].Size + cr.clusterStats[cluster2].Size
 		if combinedSize <= cr.config.TargetClusterSize {
 			merges = append(merges, ClusterMerge{
@@ -326,7 +326,7 @@ func (cr *ClusterRebalancer) planClusterMerges(undersizedClusters []int) []Clust
 			})
 		}
 	}
-	
+
 	return merges
 }
 
@@ -346,11 +346,11 @@ func (cr *ClusterRebalancer) ExecuteRebalancing(plan *RebalancePlan, index Rebal
 	for i := 0; i < len(plan.Moves); i += cr.config.RebalanceBatchSize {
 		end := minInt(i+cr.config.RebalanceBatchSize, len(plan.Moves))
 		batch := plan.Moves[i:end]
-		
+
 		if err := cr.executeMovesBatch(batch, index); err != nil {
 			return fmt.Errorf("failed to execute moves batch: %w", err)
 		}
-		
+
 		event.VectorsMoved += len(batch)
 	}
 
@@ -388,7 +388,7 @@ func (cr *ClusterRebalancer) executeMovesBatch(moves []VectorMove, index Rebalan
 		if err := index.MoveVector(move.VectorID, move.FromCluster, move.ToCluster); err != nil {
 			return fmt.Errorf("failed to move vector %s: %w", move.VectorID, err)
 		}
-		
+
 		// Update stats
 		if fromStats, exists := cr.clusterStats[move.FromCluster]; exists {
 			delete(fromStats.VectorIDs, move.VectorID)
@@ -451,7 +451,7 @@ func (cr *ClusterRebalancer) estimateRebalanceImpact(plan *RebalancePlan) Rebala
 func (cr *ClusterRebalancer) GetRebalanceHistory() []RebalanceEvent {
 	cr.mu.RLock()
 	defer cr.mu.RUnlock()
-	
+
 	history := make([]RebalanceEvent, len(cr.rebalanceHistory))
 	copy(history, cr.rebalanceHistory)
 	return history

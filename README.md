@@ -67,6 +67,74 @@ make build
 ./build/embeddix-api -host 0.0.0.0 -port 8080 -db bolt -path data/embeddix.db
 ```
 
+## Configuration
+
+EmbeddixDB can be configured using a YAML configuration file, environment variables, or command-line flags. The configuration follows this precedence order:
+1. Command-line flags (highest priority)
+2. Environment variables
+3. Configuration file (`~/.embeddixdb.yml`)
+4. Default values
+
+### Configuration File
+
+Create a configuration file at `~/.embeddixdb.yml` or specify a custom path with the `-config` flag:
+
+```yaml
+# Example configuration for Ollama integration
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+persistence:
+  type: "bolt"
+  path: "data/embeddix.db"
+
+ai:
+  embedding:
+    engine: "ollama"
+    model: "nomic-embed-text"
+    ollama:
+      endpoint: "http://localhost:11434"
+```
+
+See `.embeddixdb.yml.example` for a complete configuration reference.
+
+### Environment Variables
+
+Key configuration options can be set via environment variables:
+
+```bash
+export EMBEDDIXDB_HOST=0.0.0.0
+export EMBEDDIXDB_PORT=8080
+export EMBEDDIXDB_OLLAMA_ENDPOINT=http://localhost:11434
+export EMBEDDIXDB_PERSISTENCE_BACKEND=bolt
+export EMBEDDIXDB_PERSISTENCE_PATH=data/embeddix.db
+```
+
+### Ollama Integration
+
+To use Ollama for embeddings:
+
+1. Ensure Ollama is running locally:
+```bash
+ollama serve
+```
+
+2. Pull an embedding model:
+```bash
+ollama pull nomic-embed-text
+```
+
+3. Configure EmbeddixDB to use Ollama:
+```yaml
+ai:
+  embedding:
+    engine: "ollama"
+    model: "nomic-embed-text"
+    ollama:
+      endpoint: "http://localhost:11434"
+```
+
 ## Model Context Protocol (MCP) Server
 
 EmbeddixDB includes an MCP server that enables LLMs to use the vector database as a memory backend through standardized tools.

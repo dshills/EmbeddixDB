@@ -266,7 +266,7 @@ func (m *DefaultModelManager) createEmbeddingEngine(config ModelConfig) (Embeddi
 		}
 		return engine, nil
 	}
-	
+
 	// Fallback for testing only - production code should set engineFactory
 	switch config.Type {
 	case ModelTypeONNX, ModelTypeOllama:

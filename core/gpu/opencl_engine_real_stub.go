@@ -1,3 +1,4 @@
+//go:build !opencl
 // +build !opencl
 
 package gpu

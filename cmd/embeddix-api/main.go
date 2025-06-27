@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/dshills/EmbeddixDB/api"
+	"github.com/dshills/EmbeddixDB/config"
 	"github.com/dshills/EmbeddixDB/core"
+	"github.com/dshills/EmbeddixDB/core/ai/embedding"
 	"github.com/dshills/EmbeddixDB/index"
 	"github.com/dshills/EmbeddixDB/persistence"
 )
@@ -19,47 +21,59 @@ import (
 func main() {
 	// Parse command line flags
 	var (
-		host      = flag.String("host", "0.0.0.0", "Host to listen on")
-		port      = flag.Int("port", 8080, "Port to listen on")
-		dbType    = flag.String("db", "bolt", "Database type: memory, bolt, badger")
-		dbPath    = flag.String("path", "data/embeddix.db", "Database path")
-		enableWAL = flag.Bool("wal", false, "Enable Write-Ahead Logging")
-		walPath   = flag.String("wal-path", "data/wal", "WAL directory path")
+		configPath = flag.String("config", "", "Path to configuration file (default: ~/.embeddixdb.yml)")
+		host       = flag.String("host", "", "Host to listen on (overrides config)")
+		port       = flag.Int("port", 0, "Port to listen on (overrides config)")
+		dbType     = flag.String("db", "", "Database type: memory, bolt, badger (overrides config)")
+		dbPath     = flag.String("path", "", "Database path (overrides config)")
+		enableWAL  = flag.Bool("wal", false, "Enable Write-Ahead Logging")
+		walPath    = flag.String("wal-path", "data/wal", "WAL directory path")
 	)
 	flag.Parse()
 
-	fmt.Println("=== EmbeddixDB Server ===")
-	fmt.Printf("Version: 1.0.0\n")
-	fmt.Printf("Configuration:\n")
-	fmt.Printf("  Host: %s:%d\n", *host, *port)
-	fmt.Printf("  Database: %s\n", *dbType)
-	fmt.Printf("  Path: %s\n", *dbPath)
-	fmt.Printf("  WAL: %v\n", *enableWAL)
-	fmt.Println()
+	// Load configuration
+	cfg, err := config.LoadConfig(*configPath)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
-	// Create persistence configuration
-	config := persistence.PersistenceConfig{
-		Type: persistence.PersistenceType(*dbType),
-		Path: *dbPath,
+	// Override with command-line flags
+	if *host != "" {
+		cfg.Server.Host = *host
+	}
+	if *port != 0 {
+		cfg.Server.Port = *port
+	}
+	if *dbType != "" {
+		cfg.Persistence.Type = persistence.PersistenceType(*dbType)
+	}
+	if *dbPath != "" {
+		cfg.Persistence.Options["path"] = *dbPath
 	}
 
 	// Add WAL configuration if enabled
 	if *enableWAL {
-		config.WAL = &persistence.WALConfig{
-			Path:     *walPath,
-			MaxSize:  10 * 1024 * 1024, // 10MB
-			SyncMode: true,
-		}
+		cfg.Persistence.Options["wal_enabled"] = true
+		cfg.Persistence.Options["wal_path"] = *walPath
 	}
 
-	// Validate configuration
-	if err := persistence.ValidateConfig(config); err != nil {
-		log.Fatalf("Invalid configuration: %v", err)
+	fmt.Println("=== EmbeddixDB Server ===")
+	fmt.Printf("Version: 2.2.0\n")
+	fmt.Printf("Configuration:\n")
+	fmt.Printf("  Host: %s:%d\n", cfg.Server.Host, cfg.Server.Port)
+	fmt.Printf("  Database: %s\n", cfg.Persistence.Type)
+	if path, ok := cfg.Persistence.Options["path"]; ok {
+		fmt.Printf("  Path: %v\n", path)
 	}
+	fmt.Printf("  AI Engine: %s\n", cfg.AI.Embedding.Engine)
+	if cfg.AI.Embedding.Engine == "ollama" {
+		fmt.Printf("  Ollama Endpoint: %s\n", cfg.AI.Embedding.Ollama.Endpoint)
+	}
+	fmt.Println()
 
 	// Create persistence layer
 	factory := persistence.NewDefaultFactory()
-	persist, err := factory.CreatePersistence(config)
+	persist, err := factory.CreatePersistence(cfg.Persistence)
 	if err != nil {
 		log.Fatalf("Failed to create persistence: %v", err)
 	}
@@ -75,15 +89,21 @@ func main() {
 	}
 	defer vectorStore.Close()
 
-	// Create API server
-	serverConfig := api.ServerConfig{
-		Host:         *host,
-		Port:         *port,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Initialize AI components if enabled
+	if cfg.AI.Embedding.Engine != "" {
+		modelConfig := cfg.AI.Embedding.ToModelConfig()
+		embedder, err := embedding.CreateEngine(modelConfig)
+		if err != nil {
+			log.Printf("Warning: Failed to create embedding engine: %v", err)
+		} else {
+			fmt.Printf("  Embedding Engine: %s initialized\n", cfg.AI.Embedding.Engine)
+			// The embedder can be passed to handlers that need it
+			_ = embedder // Placeholder for future use
+		}
 	}
 
+	// Create API server
+	serverConfig := cfg.Server.ToServerConfig()
 	server := api.NewServer(vectorStore, serverConfig)
 
 	// Start server in a goroutine

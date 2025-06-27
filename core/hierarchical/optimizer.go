@@ -24,43 +24,43 @@ type BackgroundOptimizer struct {
 // OptimizerConfig configures the background optimizer
 type OptimizerConfig struct {
 	// Task scheduling
-	EnableOptimization      bool          `json:"enable_optimization"`
-	OptimizationInterval    time.Duration `json:"optimization_interval"`
-	MinTimeBetweenTasks     time.Duration `json:"min_time_between_tasks"`
-	
+	EnableOptimization   bool          `json:"enable_optimization"`
+	OptimizationInterval time.Duration `json:"optimization_interval"`
+	MinTimeBetweenTasks  time.Duration `json:"min_time_between_tasks"`
+
 	// Task priorities
-	ClusterQualityWeight    float64       `json:"cluster_quality_weight"`
-	GraphConnectivityWeight float64       `json:"graph_connectivity_weight"`
-	MemoryEfficiencyWeight  float64       `json:"memory_efficiency_weight"`
-	
+	ClusterQualityWeight    float64 `json:"cluster_quality_weight"`
+	GraphConnectivityWeight float64 `json:"graph_connectivity_weight"`
+	MemoryEfficiencyWeight  float64 `json:"memory_efficiency_weight"`
+
 	// Resource limits
-	MaxCPUPercent           float64       `json:"max_cpu_percent"`
-	MaxMemoryMB             int64         `json:"max_memory_mb"`
-	MaxConcurrentTasks      int           `json:"max_concurrent_tasks"`
+	MaxCPUPercent      float64 `json:"max_cpu_percent"`
+	MaxMemoryMB        int64   `json:"max_memory_mb"`
+	MaxConcurrentTasks int     `json:"max_concurrent_tasks"`
 }
 
 // OptimizationTask represents a background optimization task
 type OptimizationTask struct {
-	ID          string
-	Type        TaskType
-	Priority    float64
-	Created     time.Time
-	Started     time.Time
-	Completed   time.Time
-	Status      TaskStatus
-	Error       error
-	Impact      *TaskImpact
+	ID        string
+	Type      TaskType
+	Priority  float64
+	Created   time.Time
+	Started   time.Time
+	Completed time.Time
+	Status    TaskStatus
+	Error     error
+	Impact    *TaskImpact
 }
 
 // TaskType represents the type of optimization task
 type TaskType string
 
 const (
-	TaskTypeClusterOptimization  TaskType = "cluster_optimization"
-	TaskTypeGraphRepair          TaskType = "graph_repair"
-	TaskTypeMemoryCompaction     TaskType = "memory_compaction"
-	TaskTypeCentroidRefinement   TaskType = "centroid_refinement"
-	TaskTypeEdgePruning          TaskType = "edge_pruning"
+	TaskTypeClusterOptimization TaskType = "cluster_optimization"
+	TaskTypeGraphRepair         TaskType = "graph_repair"
+	TaskTypeMemoryCompaction    TaskType = "memory_compaction"
+	TaskTypeCentroidRefinement  TaskType = "centroid_refinement"
+	TaskTypeEdgePruning         TaskType = "edge_pruning"
 )
 
 // TaskStatus represents the status of an optimization task
@@ -96,7 +96,7 @@ type OptimizationMetrics struct {
 // NewBackgroundOptimizer creates a new background optimizer
 func NewBackgroundOptimizer(config OptimizerConfig) *BackgroundOptimizer {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &BackgroundOptimizer{
 		config:           config,
 		tasks:            make([]OptimizationTask, 0),
@@ -176,7 +176,7 @@ func (bo *BackgroundOptimizer) performOptimizationCycle(index OptimizableIndex) 
 		wg.Add(1)
 		go func(t OptimizationTask) {
 			defer wg.Done()
-			
+
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
@@ -310,7 +310,7 @@ func (bo *BackgroundOptimizer) executeTask(task *OptimizationTask, index Optimiz
 		bo.metrics.MemoryFreedTotal += impact.MemoryFreedMB
 		bo.metrics.LastOptimization = time.Now()
 		bo.metrics.mu.Unlock()
-		
+
 		// Update last optimization time for this task type
 		bo.mu.Lock()
 		bo.lastOptimization[string(task.Type)] = time.Now()
@@ -348,7 +348,7 @@ func (bo *BackgroundOptimizer) optimizeClusters(index OptimizableIndex, impact *
 		if err := index.UpdateClusterAssignments(result.Assignments); err != nil {
 			return fmt.Errorf("failed to update assignments: %w", err)
 		}
-		
+
 		impact.VectorsProcessed = len(vectors)
 		impact.QualityImprovement = newQuality.OverallSilhouette - index.GetClusterQuality()
 	}
@@ -378,14 +378,14 @@ func (bo *BackgroundOptimizer) repairGraph(index OptimizableIndex, impact *TaskI
 // compactMemory compacts memory usage
 func (bo *BackgroundOptimizer) compactMemory(index OptimizableIndex, impact *TaskImpact) error {
 	initialMemory := index.GetMemoryUsage()
-	
+
 	if err := index.CompactMemory(); err != nil {
 		return fmt.Errorf("memory compaction failed: %w", err)
 	}
 
 	finalMemory := index.GetMemoryUsage()
 	impact.MemoryFreedMB = (initialMemory - finalMemory) / (1024 * 1024)
-	
+
 	return nil
 }
 
@@ -397,7 +397,7 @@ func (bo *BackgroundOptimizer) refineCentroids(index OptimizableIndex, impact *T
 	for _, cluster := range clusters {
 		oldCentroid := cluster.Centroid
 		newCentroid := index.ComputeCentroid(cluster.Members)
-		
+
 		// Update if centroid moved significantly
 		distance, _ := core.EuclideanDistance(oldCentroid, newCentroid)
 		if distance > 0.01 {
@@ -422,7 +422,7 @@ func (bo *BackgroundOptimizer) pruneEdges(index OptimizableIndex, impact *TaskIm
 	impact.VectorsProcessed = prunedCount
 	// Estimate memory saved (rough approximation)
 	impact.MemoryFreedMB = int64(prunedCount * 8 / 1024 / 1024) // 8 bytes per edge
-	
+
 	return nil
 }
 
@@ -485,9 +485,9 @@ func (bo *BackgroundOptimizer) updateTaskStatus(task *OptimizationTask, status T
 func (bo *BackgroundOptimizer) recordTask(task OptimizationTask) {
 	bo.mu.Lock()
 	defer bo.mu.Unlock()
-	
+
 	bo.tasks = append(bo.tasks, task)
-	
+
 	// Keep only recent tasks
 	if len(bo.tasks) > 1000 {
 		bo.tasks = bo.tasks[len(bo.tasks)-1000:]
@@ -498,7 +498,7 @@ func (bo *BackgroundOptimizer) recordTask(task OptimizationTask) {
 func (bo *BackgroundOptimizer) GetMetrics() OptimizationMetrics {
 	bo.metrics.mu.RLock()
 	defer bo.metrics.mu.RUnlock()
-	
+
 	return *bo.metrics
 }
 
@@ -506,12 +506,12 @@ func (bo *BackgroundOptimizer) GetMetrics() OptimizationMetrics {
 func (bo *BackgroundOptimizer) GetRecentTasks(limit int) []OptimizationTask {
 	bo.mu.RLock()
 	defer bo.mu.RUnlock()
-	
+
 	start := len(bo.tasks) - limit
 	if start < 0 {
 		start = 0
 	}
-	
+
 	result := make([]OptimizationTask, len(bo.tasks[start:]))
 	copy(result, bo.tasks[start:])
 	return result
@@ -526,18 +526,18 @@ type OptimizableIndex interface {
 	GetClusters() []Cluster
 	ComputeCentroid(memberIDs []string) []float32
 	UpdateCentroid(clusterID int, centroid []float32) error
-	
+
 	// Graph operations
 	GetGraphConnectivity() float64
 	FindDisconnectedComponents() [][]string
 	RepairComponent(component []string) error
 	PruneRedundantEdges() (int, error)
-	
+
 	// Memory operations
 	GetMemoryEfficiency() float64
 	GetMemoryUsage() int64
 	CompactMemory() error
-	
+
 	// General operations
 	Size() int
 	GetDistanceMetric() core.DistanceMetric

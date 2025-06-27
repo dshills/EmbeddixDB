@@ -42,12 +42,12 @@ type HierarchicalHNSW struct {
 
 // ClusterMetadata stores metadata about a cluster
 type ClusterMetadata struct {
-	ID              int
-	Centroid        []float32
-	CoarseCentroid  []float32
-	Size            int
-	LastUpdated     time.Time
-	QualityScore    float64
+	ID             int
+	Centroid       []float32
+	CoarseCentroid []float32
+	Size           int
+	LastUpdated    time.Time
+	QualityScore   float64
 }
 
 // HierarchicalConfig configures the hierarchical HNSW structure
@@ -123,14 +123,14 @@ func NewHierarchicalHNSW(dimension int, distanceMetric core.DistanceMetric, conf
 	)
 
 	rebalancerConfig := hierarchical.RebalancerConfig{
-		SizeImbalanceThreshold:   config.RebalanceThreshold,
-		QualityThreshold:         config.QualityThreshold,
-		MinTimeBetweenRebalance:  time.Minute * 5,
-		MaxVectorsToMove:         1000,
-		TargetClusterSize:        config.MaxVectorsPerCluster,
-		AllowSplitMerge:          true,
-		BackgroundRebalance:      true,
-		RebalanceBatchSize:       100,
+		SizeImbalanceThreshold:  config.RebalanceThreshold,
+		QualityThreshold:        config.QualityThreshold,
+		MinTimeBetweenRebalance: time.Minute * 5,
+		MaxVectorsToMove:        1000,
+		TargetClusterSize:       config.MaxVectorsPerCluster,
+		AllowSplitMerge:         true,
+		BackgroundRebalance:     true,
+		RebalanceBatchSize:      100,
 	}
 	rebalancer := hierarchical.NewClusterRebalancer(rebalancerConfig)
 
@@ -244,7 +244,7 @@ func (h *HierarchicalHNSW) Search(query []float32, k int, filter map[string]stri
 
 	// Step 1: Find most relevant clusters using centroids
 	relevantClusters := h.findRelevantClusters(query, k)
-	
+
 	// Step 2: Create coarse representation based on relevant clusters
 	coarseQuery := h.createAdaptiveCoarseQuery(query, relevantClusters)
 
@@ -258,12 +258,12 @@ func (h *HierarchicalHNSW) Search(query []float32, k int, filter map[string]stri
 
 	// Step 4: Combine relevant clusters from both methods
 	searchClusters := make(map[int]float32)
-	
+
 	// Add clusters from centroid search with distances
 	for _, rc := range relevantClusters {
 		searchClusters[rc.clusterID] = rc.distance
 	}
-	
+
 	// Add clusters from coarse search
 	for _, coarseResult := range coarseResults {
 		clusterID := h.mapCoarseResultToCluster(coarseResult.ID)
@@ -291,7 +291,7 @@ func (h *HierarchicalHNSW) Search(query []float32, k int, filter map[string]stri
 	if h.config.EnableQualityMonitoring {
 		latency := getCurrentTimeMs() - startTime
 		h.recordQualityMetric(len(results), latency, len(searchClusters))
-		
+
 		// Update cluster search metrics for adaptive routing
 		for clusterID := range searchClusters {
 			h.rebalancer.UpdateSearchMetrics(clusterID, latency, float64(len(results))/float64(k))
@@ -310,9 +310,9 @@ func (h *HierarchicalHNSW) findRelevantClusters(query []float32, k int) []struct
 		clusterID int
 		distance  float32
 	}
-	
+
 	clusters := make([]clusterDist, 0, h.config.NumFineClusters)
-	
+
 	// Compute distances to all cluster centroids
 	for clusterID, metadata := range h.clusterMetadata {
 		if len(metadata.Centroid) == len(query) {
@@ -323,28 +323,28 @@ func (h *HierarchicalHNSW) findRelevantClusters(query []float32, k int) []struct
 			})
 		}
 	}
-	
+
 	// Sort by distance
 	sort.Slice(clusters, func(i, j int) bool {
 		return clusters[i].distance < clusters[j].distance
 	})
-	
+
 	// Select top clusters based on k and overlap
 	numClusters := int(math.Ceil(math.Sqrt(float64(k)) * (1.0 + h.config.RoutingOverlap)))
 	if numClusters > len(clusters) {
 		numClusters = len(clusters)
 	}
-	
+
 	result := make([]struct {
 		clusterID int
 		distance  float32
 	}, numClusters)
-	
+
 	for i := 0; i < numClusters; i++ {
 		result[i].clusterID = clusters[i].clusterID
 		result[i].distance = clusters[i].distance
 	}
-	
+
 	return result
 }
 
@@ -359,11 +359,11 @@ func (h *HierarchicalHNSW) createAdaptiveCoarseQuery(query []float32, relevantCl
 		copy(coarse, query[:h.config.CoarseDimension])
 		return coarse
 	}
-	
+
 	// Use weighted average of relevant cluster coarse centroids
 	coarseQuery := make([]float32, h.config.CoarseDimension)
 	totalWeight := float32(0)
-	
+
 	for _, rc := range relevantClusters {
 		if metadata, exists := h.clusterMetadata[rc.clusterID]; exists && len(metadata.CoarseCentroid) > 0 {
 			// Weight inversely by distance
@@ -374,7 +374,7 @@ func (h *HierarchicalHNSW) createAdaptiveCoarseQuery(query []float32, relevantCl
 			totalWeight += weight
 		}
 	}
-	
+
 	// Normalize
 	if totalWeight > 0 {
 		for i := range coarseQuery {
@@ -384,7 +384,7 @@ func (h *HierarchicalHNSW) createAdaptiveCoarseQuery(query []float32, relevantCl
 		// Fall back to simple reduction
 		copy(coarseQuery, query[:h.config.CoarseDimension])
 	}
-	
+
 	return coarseQuery
 }
 
@@ -395,20 +395,20 @@ func (h *HierarchicalHNSW) searchClustersWithPriority(query []float32, clusters 
 		id    int
 		score float32
 	}
-	
+
 	priorities := make([]clusterPriority, 0, len(clusters))
 	for id, score := range clusters {
 		priorities = append(priorities, clusterPriority{id: id, score: score})
 	}
-	
+
 	sort.Slice(priorities, func(i, j int) bool {
 		return priorities[i].score < priorities[j].score
 	})
-	
+
 	// Search clusters in priority order
 	var allResults []core.SearchResult
 	searched := 0
-	
+
 	for _, cp := range priorities {
 		if fineIndex, exists := h.fineIndexes[cp.id]; exists {
 			// Adaptive k based on cluster priority
@@ -416,27 +416,27 @@ func (h *HierarchicalHNSW) searchClustersWithPriority(query []float32, clusters 
 			if searched > 0 {
 				searchK = k / 2 // Search fewer in lower priority clusters
 			}
-			
+
 			fineResults, err := fineIndex.Search(query, searchK, filter)
 			if err != nil {
 				continue
 			}
-			
+
 			allResults = append(allResults, fineResults...)
 			searched++
-			
+
 			// Early termination if we have enough good results
 			if len(allResults) >= k*3 {
 				break
 			}
 		}
 	}
-	
+
 	// Sort all results by score
 	sort.Slice(allResults, func(i, j int) bool {
 		return allResults[i].Score < allResults[j].Score
 	})
-	
+
 	// Remove duplicates
 	seen := make(map[string]bool)
 	uniqueResults := make([]core.SearchResult, 0, len(allResults))
@@ -446,7 +446,7 @@ func (h *HierarchicalHNSW) searchClustersWithPriority(query []float32, clusters 
 			uniqueResults = append(uniqueResults, result)
 		}
 	}
-	
+
 	return uniqueResults
 }
 
@@ -455,19 +455,19 @@ func (h *HierarchicalHNSW) rerankWithFullPrecision(query []float32, results []co
 	if limit > len(results) {
 		limit = len(results)
 	}
-	
+
 	// Recompute distances with full precision
 	for i := 0; i < limit; i++ {
 		if v, exists := h.vectors[results[i].ID]; exists {
 			results[i].Score = h.computeDistance(query, v.Values)
 		}
 	}
-	
+
 	// Re-sort by updated scores
 	sort.Slice(results[:limit], func(i, j int) bool {
 		return results[i].Score < results[j].Score
 	})
-	
+
 	return results
 }
 
@@ -582,7 +582,7 @@ func (h *HierarchicalHNSW) assignToFineClusterWithClustering(vector core.Vector)
 		// Find nearest cluster centroid
 		minDist := float32(math.MaxFloat32)
 		bestCluster := 0
-		
+
 		for clusterID, metadata := range h.clusterMetadata {
 			if len(metadata.Centroid) == len(vector.Values) {
 				dist := h.computeDistance(vector.Values, metadata.Centroid)
@@ -592,16 +592,16 @@ func (h *HierarchicalHNSW) assignToFineClusterWithClustering(vector core.Vector)
 				}
 			}
 		}
-		
+
 		// Check cluster capacity
 		if h.fineIndexes[bestCluster].Size() < h.config.MaxVectorsPerCluster {
 			return bestCluster
 		}
-		
+
 		// Find alternative cluster with capacity
 		return h.findAlternativeCluster(vector, bestCluster)
 	}
-	
+
 	// Fall back to adaptive assignment for initial vectors
 	return h.adaptiveClusterAssignment(vector)
 }
@@ -748,7 +748,7 @@ func (h *HierarchicalHNSW) createCoarseRepresentationFromCluster(vector core.Vec
 			Metadata: vector.Metadata,
 		}, nil
 	}
-	
+
 	// Fall back to simple dimensionality reduction
 	return h.createCoarseRepresentation(vector)
 }
@@ -759,29 +759,29 @@ func (h *HierarchicalHNSW) findAlternativeCluster(vector core.Vector, excludeClu
 		id   int
 		dist float32
 	}
-	
+
 	candidates := make([]clusterDist, 0, h.config.NumFineClusters-1)
-	
+
 	for clusterID, metadata := range h.clusterMetadata {
 		if clusterID == excludeCluster {
 			continue
 		}
-		
+
 		if h.fineIndexes[clusterID].Size() < h.config.MaxVectorsPerCluster {
 			dist := h.computeDistance(vector.Values, metadata.Centroid)
 			candidates = append(candidates, clusterDist{id: clusterID, dist: dist})
 		}
 	}
-	
+
 	// Sort by distance
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].dist < candidates[j].dist
 	})
-	
+
 	if len(candidates) > 0 {
 		return candidates[0].id
 	}
-	
+
 	// All clusters full, return least loaded
 	return h.adaptiveClusterAssignment(vector)
 }
@@ -789,7 +789,7 @@ func (h *HierarchicalHNSW) findAlternativeCluster(vector core.Vector, excludeClu
 // updateClusterMetadata updates cluster centroid and metadata
 func (h *HierarchicalHNSW) updateClusterMetadata(clusterID int) {
 	metadata := h.clusterMetadata[clusterID]
-	
+
 	// Get all vectors in cluster
 	clusterVectors := make([]core.Vector, 0)
 	for vid, cid := range h.vectorRouting {
@@ -799,11 +799,11 @@ func (h *HierarchicalHNSW) updateClusterMetadata(clusterID int) {
 			}
 		}
 	}
-	
+
 	if len(clusterVectors) == 0 {
 		return
 	}
-	
+
 	// Compute new centroid
 	centroid := make([]float32, h.dimension)
 	for _, v := range clusterVectors {
@@ -814,11 +814,11 @@ func (h *HierarchicalHNSW) updateClusterMetadata(clusterID int) {
 	for i := range centroid {
 		centroid[i] /= float32(len(clusterVectors))
 	}
-	
+
 	metadata.Centroid = centroid
 	metadata.Size = len(clusterVectors)
 	metadata.LastUpdated = time.Now()
-	
+
 	// Update coarse centroid
 	coarseCentroid := make([]float32, h.config.CoarseDimension)
 	copy(coarseCentroid, centroid[:h.config.CoarseDimension])
@@ -841,13 +841,13 @@ func (h *HierarchicalHNSW) performRebalancing(reason string) {
 	// Create rebalancing plan
 	plan := h.rebalancer.PlanRebalancing()
 	plan.Reason = reason
-	
+
 	// Execute rebalancing
 	if err := h.rebalancer.ExecuteRebalancing(plan, h); err != nil {
 		// Log error but don't fail
 		return
 	}
-	
+
 	// Trigger re-clustering if significant changes
 	if len(plan.Moves) > h.config.NumFineClusters*10 {
 		go h.reclusterAll()
@@ -858,30 +858,30 @@ func (h *HierarchicalHNSW) performRebalancing(reason string) {
 func (h *HierarchicalHNSW) reclusterAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	// Collect all vectors
 	allVectors := make([]core.Vector, 0, len(h.vectors))
 	for _, v := range h.vectors {
 		allVectors = append(allVectors, v)
 	}
-	
+
 	if len(allVectors) < h.config.NumFineClusters {
 		return
 	}
-	
+
 	// Perform clustering
 	result, err := h.clusterer.Cluster(allVectors)
 	if err != nil {
 		return
 	}
-	
+
 	// Apply new assignments
 	for vid, newClusterID := range result.Assignments {
 		oldClusterID, exists := h.vectorRouting[vid]
 		if !exists || oldClusterID == newClusterID {
 			continue
 		}
-		
+
 		// Move vector to new cluster
 		if v, exists := h.vectors[vid]; exists {
 			h.fineIndexes[oldClusterID].Delete(vid)
@@ -889,7 +889,7 @@ func (h *HierarchicalHNSW) reclusterAll() {
 			h.vectorRouting[vid] = newClusterID
 		}
 	}
-	
+
 	// Update all cluster metadata
 	for i := 0; i < h.config.NumFineClusters; i++ {
 		h.updateClusterMetadata(i)
@@ -910,25 +910,25 @@ func (h *HierarchicalHNSW) computeDistance(v1, v2 []float32) float32 {
 func (h *HierarchicalHNSW) MoveVector(vectorID string, fromCluster, toCluster int) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	v, exists := h.vectors[vectorID]
 	if !exists {
 		return fmt.Errorf("vector %s not found", vectorID)
 	}
-	
+
 	// Remove from old cluster
 	if err := h.fineIndexes[fromCluster].Delete(vectorID); err != nil {
 		return err
 	}
-	
+
 	// Add to new cluster
 	if err := h.fineIndexes[toCluster].Add(v); err != nil {
 		return err
 	}
-	
+
 	// Update routing
 	h.vectorRouting[vectorID] = toCluster
-	
+
 	return nil
 }
 
@@ -946,67 +946,67 @@ func (h *HierarchicalHNSW) MergeClusters(cluster1, cluster2 int) error {
 func (h *HierarchicalHNSW) GetClusterQuality() float64 {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	
+
 	totalQuality := 0.0
 	count := 0
-	
+
 	for _, metadata := range h.clusterMetadata {
 		if metadata.QualityScore > 0 {
 			totalQuality += metadata.QualityScore
 			count++
 		}
 	}
-	
+
 	if count == 0 {
 		return 0.5 // Default medium quality
 	}
-	
+
 	return totalQuality / float64(count)
 }
 
 func (h *HierarchicalHNSW) GetClusterAssignments() ([]core.Vector, map[string]int) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	
+
 	vectors := make([]core.Vector, 0, len(h.vectors))
 	for _, v := range h.vectors {
 		vectors = append(vectors, v)
 	}
-	
+
 	assignments := make(map[string]int)
 	for k, v := range h.vectorRouting {
 		assignments[k] = v
 	}
-	
+
 	return vectors, assignments
 }
 
 func (h *HierarchicalHNSW) UpdateClusterAssignments(assignments map[string]int) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	for vid, newClusterID := range assignments {
 		oldClusterID, exists := h.vectorRouting[vid]
 		if !exists || oldClusterID == newClusterID {
 			continue
 		}
-		
+
 		if v, exists := h.vectors[vid]; exists {
 			h.fineIndexes[oldClusterID].Delete(vid)
 			h.fineIndexes[newClusterID].Add(v)
 			h.vectorRouting[vid] = newClusterID
 		}
 	}
-	
+
 	return nil
 }
 
 func (h *HierarchicalHNSW) GetClusters() []hierarchical.Cluster {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	
+
 	clusters := make([]hierarchical.Cluster, 0, h.config.NumFineClusters)
-	
+
 	for i := 0; i < h.config.NumFineClusters; i++ {
 		members := make([]string, 0)
 		for vid, cid := range h.vectorRouting {
@@ -1014,7 +1014,7 @@ func (h *HierarchicalHNSW) GetClusters() []hierarchical.Cluster {
 				members = append(members, vid)
 			}
 		}
-		
+
 		cluster := hierarchical.Cluster{
 			ID:       i,
 			Centroid: h.clusterMetadata[i].Centroid,
@@ -1023,17 +1023,17 @@ func (h *HierarchicalHNSW) GetClusters() []hierarchical.Cluster {
 		}
 		clusters = append(clusters, cluster)
 	}
-	
+
 	return clusters
 }
 
 func (h *HierarchicalHNSW) ComputeCentroid(memberIDs []string) []float32 {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	
+
 	centroid := make([]float32, h.dimension)
 	count := 0
-	
+
 	for _, id := range memberIDs {
 		if v, exists := h.vectors[id]; exists {
 			for i, val := range v.Values {
@@ -1042,25 +1042,25 @@ func (h *HierarchicalHNSW) ComputeCentroid(memberIDs []string) []float32 {
 			count++
 		}
 	}
-	
+
 	if count > 0 {
 		for i := range centroid {
 			centroid[i] /= float32(count)
 		}
 	}
-	
+
 	return centroid
 }
 
 func (h *HierarchicalHNSW) UpdateCentroid(clusterID int, centroid []float32) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	if metadata, exists := h.clusterMetadata[clusterID]; exists {
 		metadata.Centroid = centroid
 		metadata.LastUpdated = time.Now()
 	}
-	
+
 	return nil
 }
 

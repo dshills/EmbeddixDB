@@ -53,12 +53,12 @@ func TestEmbeddingIntegration(t *testing.T) {
 	persistenceBackend := persistence.NewMemoryPersistence()
 	indexFactory := index.NewDefaultFactory()
 	baseStore := core.NewVectorStore(persistenceBackend, indexFactory)
-	
+
 	// Create embedding store with mock engine
 	mockEngine := &MockEmbeddingEngine{dimension: 384}
 	embeddingStore := NewEmbeddingStore(baseStore, mockEngine)
 	defer embeddingStore.Close()
-	
+
 	// Create a test collection
 	ctx := context.Background()
 	collection := core.Collection{
@@ -67,25 +67,25 @@ func TestEmbeddingIntegration(t *testing.T) {
 		Distance:  "cosine",
 		IndexType: "flat",
 	}
-	
+
 	if err := embeddingStore.CreateCollection(ctx, collection); err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
-	
+
 	// Test EmbedText method
 	testText := "This is a test sentence for embedding"
 	embedding, err := embeddingStore.EmbedText(ctx, testText)
 	if err != nil {
 		t.Fatalf("Failed to embed text: %v", err)
 	}
-	
+
 	if len(embedding) != 384 {
 		t.Errorf("Expected embedding dimension 384, got %d", len(embedding))
 	}
-	
+
 	// Test that handlers can use the embedding functionality
 	handler := &AddVectorsHandler{store: embeddingStore}
-	
+
 	args := map[string]interface{}{
 		"collection": "test_embeddings",
 		"vectors": []interface{}{
@@ -98,30 +98,30 @@ func TestEmbeddingIntegration(t *testing.T) {
 			},
 		},
 	}
-	
+
 	result, err := handler.Execute(ctx, args)
 	if err != nil {
 		t.Fatalf("Failed to add vector with content: %v", err)
 	}
-	
+
 	if result.IsError {
 		t.Errorf("Expected success, got error: %v", result.Content)
 	}
-	
+
 	// Verify the vector was added
 	vec, err := embeddingStore.GetVector(ctx, "test_embeddings", "test1")
 	if err != nil {
 		t.Fatalf("Failed to get vector: %v", err)
 	}
-	
+
 	if vec.ID != "test1" {
 		t.Errorf("Expected vector ID 'test1', got '%s'", vec.ID)
 	}
-	
+
 	if len(vec.Values) != 384 {
 		t.Errorf("Expected vector dimension 384, got %d", len(vec.Values))
 	}
-	
+
 	// Test search with text query
 	searchHandler := &SearchVectorsHandler{store: embeddingStore}
 	searchArgs := map[string]interface{}{
@@ -129,12 +129,12 @@ func TestEmbeddingIntegration(t *testing.T) {
 		"query":      "test document",
 		"limit":      10,
 	}
-	
+
 	searchResult, err := searchHandler.Execute(ctx, searchArgs)
 	if err != nil {
 		t.Fatalf("Failed to search with text query: %v", err)
 	}
-	
+
 	if searchResult.IsError {
 		t.Errorf("Expected search success, got error: %v", searchResult.Content)
 	}

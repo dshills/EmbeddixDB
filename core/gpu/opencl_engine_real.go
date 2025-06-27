@@ -1,3 +1,4 @@
+//go:build opencl
 // +build opencl
 
 package gpu
@@ -14,12 +15,12 @@ import (
 
 // RealOpenCLEngine implements GPU acceleration using actual OpenCL
 type RealOpenCLEngine struct {
-	config         GPUConfig
-	kernelManager  *OpenCLKernelManager
-	memoryManager  *OpenCLMemoryManager
-	stats          PerformanceStats
-	initialized    bool
-	mu             sync.RWMutex
+	config        GPUConfig
+	kernelManager *OpenCLKernelManager
+	memoryManager *OpenCLMemoryManager
+	stats         PerformanceStats
+	initialized   bool
+	mu            sync.RWMutex
 }
 
 // OpenCLMemoryManager manages GPU memory allocations
@@ -32,11 +33,11 @@ type OpenCLMemoryManager struct {
 
 // OpenCLAllocation represents a GPU memory allocation
 type OpenCLAllocation struct {
-	buffer    unsafe.Pointer
-	size      int64
-	readOnly  bool
-	inUse     bool
-	lastUsed  time.Time
+	buffer   unsafe.Pointer
+	size     int64
+	readOnly bool
+	inUse    bool
+	lastUsed time.Time
 }
 
 // NewRealOpenCLEngine creates a new OpenCL engine with actual GPU support
@@ -93,7 +94,7 @@ func (e *RealOpenCLEngine) ComputeDistances(
 	startTime := time.Now()
 	dimension := len(query)
 	numVectors := len(vectors) / dimension
-	
+
 	if numVectors == 0 {
 		return []float32{}, nil
 	}
@@ -226,7 +227,7 @@ func (e *RealOpenCLEngine) allocateBuffer(name string, size int64, readOnly bool
 	if e.memoryManager.totalAllocated+size > e.memoryManager.maxMemory {
 		// Try to free unused allocations
 		e.freeUnusedBuffers()
-		
+
 		if e.memoryManager.totalAllocated+size > e.memoryManager.maxMemory {
 			return nil, fmt.Errorf("out of GPU memory")
 		}
@@ -264,7 +265,7 @@ func (e *RealOpenCLEngine) freeBuffer(name string) {
 // freeUnusedBuffers frees buffer allocations not in use
 func (e *RealOpenCLEngine) freeUnusedBuffers() {
 	cutoff := time.Now().Add(-time.Minute)
-	
+
 	for name, alloc := range e.memoryManager.allocations {
 		if !alloc.inUse && alloc.lastUsed.Before(cutoff) {
 			e.kernelManager.FreeBuffer(alloc.buffer)
@@ -317,19 +318,19 @@ func (m *OpenCLMemoryInfo) CopyFromDevice(data []float32) error {
 func (e *RealOpenCLEngine) GetStats() PerformanceStats {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	
+
 	stats := e.stats
 	if stats.OperationsCompleted > 0 {
 		stats.AverageComputeTime = stats.TotalComputeTime / time.Duration(stats.OperationsCompleted)
 		stats.Throughput = float64(stats.VectorsProcessed) / stats.TotalComputeTime.Seconds()
 	}
-	
+
 	// Add memory stats
 	e.memoryManager.mu.Lock()
 	stats.MemoryUsed = e.memoryManager.totalAllocated
 	stats.MemoryTotal = e.memoryManager.maxMemory
 	e.memoryManager.mu.Unlock()
-	
+
 	return stats
 }
 
@@ -370,6 +371,6 @@ func (e *RealOpenCLEngine) GetDeviceInfo() (DeviceInfo, error) {
 	if !e.initialized {
 		return DeviceInfo{}, ErrGPUNotInitialized
 	}
-	
+
 	return e.kernelManager.GetDeviceInfo()
 }

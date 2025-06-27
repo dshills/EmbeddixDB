@@ -24,16 +24,16 @@ type Server struct {
 // NewServer creates a new MCP server
 func NewServer(store core.VectorStore) *Server {
 	logger := log.New(os.Stderr, "[MCP] ", log.LstdFlags|log.Lshortfile)
-	
+
 	s := &Server{
 		store:    store,
 		handlers: make(map[string]Handler),
 		logger:   logger,
 	}
-	
+
 	// Register tool handlers
 	s.registerHandlers()
-	
+
 	return s
 }
 
@@ -52,7 +52,7 @@ func (s *Server) registerHandlers() {
 func (s *Server) Serve(ctx context.Context) error {
 	reader := bufio.NewReader(os.Stdin)
 	encoder := json.NewEncoder(os.Stdout)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -66,7 +66,7 @@ func (s *Server) Serve(ctx context.Context) error {
 				}
 				return fmt.Errorf("read error: %w", err)
 			}
-			
+
 			// Parse the request
 			var req Request
 			if err := json.Unmarshal(line, &req); err != nil {
@@ -85,7 +85,7 @@ func (s *Server) Serve(ctx context.Context) error {
 				}
 				continue
 			}
-			
+
 			// Validate JSON-RPC version
 			if req.JSONRPC != JSONRPCVersion {
 				resp := Response{
@@ -102,10 +102,10 @@ func (s *Server) Serve(ctx context.Context) error {
 				}
 				continue
 			}
-			
+
 			// Handle the request
 			resp := s.handleRequest(ctx, &req)
-			
+
 			// Send the response
 			if err := encoder.Encode(resp); err != nil {
 				s.logger.Printf("Failed to send response: %v", err)
@@ -120,7 +120,7 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) Response {
 		JSONRPC: JSONRPCVersion,
 		ID:      req.ID,
 	}
-	
+
 	switch req.Method {
 	case "initialize":
 		result, err := s.handleInitialize(ctx, req.Params)
@@ -132,12 +132,12 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) Response {
 		} else {
 			resp.Result = result
 		}
-		
+
 	case "tools/list":
 		resp.Result = ToolsListResponse{
 			Tools: GetTools(),
 		}
-		
+
 	case "tools/call":
 		result, err := s.handleToolCall(ctx, req.Params)
 		if err != nil {
@@ -148,7 +148,7 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) Response {
 		} else {
 			resp.Result = result
 		}
-		
+
 	default:
 		resp.Error = &Error{
 			Code:    ErrorCodeMethodNotFound,
@@ -156,7 +156,7 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) Response {
 			Data:    req.Method,
 		}
 	}
-	
+
 	return resp
 }
 
@@ -166,7 +166,7 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("invalid initialize params: %w", err)
 	}
-	
+
 	return &InitializeResponse{
 		ProtocolVersion: ProtocolVersion,
 		Capabilities: ServerCapabilities{
@@ -187,12 +187,12 @@ func (s *Server) handleToolCall(ctx context.Context, params json.RawMessage) (*T
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("invalid tool call params: %w", err)
 	}
-	
+
 	// Get the handler for this tool
 	s.mu.RLock()
 	handler, exists := s.handlers[req.Name]
 	s.mu.RUnlock()
-	
+
 	if !exists {
 		return &ToolCallResponse{
 			Content: []ToolContent{
@@ -204,7 +204,7 @@ func (s *Server) handleToolCall(ctx context.Context, params json.RawMessage) (*T
 			IsError: true,
 		}, nil
 	}
-	
+
 	// Execute the tool
 	result, err := handler.Execute(ctx, req.Arguments)
 	if err != nil {
@@ -218,7 +218,7 @@ func (s *Server) handleToolCall(ctx context.Context, params json.RawMessage) (*T
 			IsError: true,
 		}, nil
 	}
-	
+
 	return result, nil
 }
 

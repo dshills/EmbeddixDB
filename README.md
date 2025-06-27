@@ -27,6 +27,13 @@ A high-performance vector database with integrated AI capabilities, designed for
 - **Docker Support**: Production-ready containers with compose configurations
 - **Performance Monitoring**: Comprehensive benchmarking suite
 
+### 🤝 **Model Context Protocol (MCP)**
+- **MCP Server**: Enable LLMs to use EmbeddixDB as a memory backend
+- **Standardized Tools**: 7 core tools for vector operations via MCP
+- **Language Agnostic**: Works with any MCP-compatible client
+- **Claude Desktop Integration**: Direct integration with Claude Desktop app
+- **Flexible Deployment**: Stdio-based communication for universal compatibility
+
 ## Quick Start
 
 ### Using Docker (Recommended)
@@ -58,6 +65,286 @@ make build
 # Run the server
 ./build/embeddix-api -host 0.0.0.0 -port 8080 -db bolt -path data/embeddix.db
 ```
+
+## Model Context Protocol (MCP) Server
+
+EmbeddixDB includes an MCP server that enables LLMs to use the vector database as a memory backend through standardized tools.
+
+### MCP Quick Start
+
+```bash
+# Build the MCP server
+make build-mcp
+
+# Run with in-memory storage (for testing)
+./build/embeddix-mcp -persistence memory
+
+# Run with persistent storage
+./build/embeddix-mcp -persistence bolt -data ./data
+```
+
+### MCP Tools Available
+
+The MCP server exposes the following tools for LLM integration:
+
+1. **create_collection** - Create a new vector collection
+2. **add_vectors** - Add vectors with metadata
+3. **search_vectors** - Semantic similarity search
+4. **get_vector** - Retrieve specific vectors
+5. **delete_vector** - Remove vectors
+6. **list_collections** - List all collections
+7. **delete_collection** - Remove collections
+
+### Using with Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "embeddixdb": {
+      "command": "/path/to/embeddix-mcp",
+      "args": ["-persistence", "bolt", "-data", "/path/to/data"]
+    }
+  }
+}
+```
+
+### MCP Usage Examples
+
+#### Python Client Example
+
+```python
+import json
+import subprocess
+
+class EmbeddixMCP:
+    def __init__(self, server_path="./build/embeddix-mcp"):
+        self.process = subprocess.Popen(
+            [server_path, "-persistence", "memory"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True
+        )
+        # Initialize connection
+        self._call("initialize", {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "python-client", "version": "1.0"}
+        })
+    
+    def _call(self, method, params=None):
+        request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "id": 1,
+            "params": params or {}
+        }
+        self.process.stdin.write(json.dumps(request) + "\n")
+        self.process.stdin.flush()
+        response = json.loads(self.process.stdout.readline())
+        return response.get("result")
+    
+    def call_tool(self, tool_name, arguments):
+        return self._call("tools/call", {
+            "name": tool_name,
+            "arguments": arguments
+        })
+
+# Usage example
+client = EmbeddixMCP()
+
+# Create a collection for conversation memory
+client.call_tool("create_collection", {
+    "name": "conversation_memory",
+    "dimension": 384,
+    "distance": "cosine"
+})
+
+# Store conversation context
+client.call_tool("add_vectors", {
+    "collection": "conversation_memory",
+    "vectors": [{
+        "content": "User prefers technical explanations with examples",
+        "metadata": {
+            "type": "user_preference",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "confidence": 0.9
+        }
+    }]
+})
+
+# Search for relevant context
+results = client.call_tool("search_vectors", {
+    "collection": "conversation_memory",
+    "query": "What kind of explanations does the user prefer?",
+    "limit": 5
+})
+```
+
+#### Node.js Example
+
+```javascript
+const { spawn } = require('child_process');
+const readline = require('readline');
+
+class EmbeddixMCP {
+  constructor(serverPath = './build/embeddix-mcp') {
+    this.process = spawn(serverPath, ['-persistence', 'memory']);
+    this.rl = readline.createInterface({
+      input: this.process.stdout,
+      output: this.process.stdin
+    });
+    this.requestId = 0;
+  }
+
+  async call(method, params = {}) {
+    const request = {
+      jsonrpc: '2.0',
+      method: method,
+      params: params,
+      id: ++this.requestId
+    };
+    
+    return new Promise((resolve) => {
+      this.rl.once('line', (line) => {
+        const response = JSON.parse(line);
+        resolve(response.result);
+      });
+      this.process.stdin.write(JSON.stringify(request) + '\n');
+    });
+  }
+
+  async callTool(name, args) {
+    return this.call('tools/call', { name, arguments: args });
+  }
+}
+
+// Usage
+async function main() {
+  const mcp = new EmbeddixMCP();
+  
+  // Initialize
+  await mcp.call('initialize', {
+    protocolVersion: '2024-11-05',
+    capabilities: {},
+    clientInfo: { name: 'nodejs-client', version: '1.0' }
+  });
+  
+  // Create RAG collection
+  await mcp.callTool('create_collection', {
+    name: 'documents',
+    dimension: 768
+  });
+  
+  // Add document chunks
+  await mcp.callTool('add_vectors', {
+    collection: 'documents',
+    vectors: [
+      {
+        content: 'EmbeddixDB is a vector database designed for LLM applications',
+        metadata: { doc_id: '1', chunk: 0 }
+      }
+    ]
+  });
+}
+```
+
+### MCP Integration Patterns
+
+#### 1. LLM Memory System
+Store and retrieve conversation context, user preferences, and session information:
+
+```python
+# Store user interaction
+client.call_tool("add_vectors", {
+    "collection": "user_memory",
+    "vectors": [{
+        "content": user_message,
+        "metadata": {
+            "user_id": user_id,
+            "session_id": session_id,
+            "timestamp": timestamp,
+            "message_type": "user"
+        }
+    }]
+})
+
+# Retrieve relevant memories
+memories = client.call_tool("search_vectors", {
+    "collection": "user_memory",
+    "query": current_context,
+    "limit": 10,
+    "filters": {"user_id": user_id}
+})
+```
+
+#### 2. RAG (Retrieval-Augmented Generation)
+Index documents and retrieve relevant chunks for context:
+
+```python
+# Index document chunks
+for chunk in document_chunks:
+    client.call_tool("add_vectors", {
+        "collection": "knowledge_base",
+        "vectors": [{
+            "content": chunk.text,
+            "metadata": {
+                "source": document.name,
+                "page": chunk.page,
+                "section": chunk.section
+            }
+        }]
+    })
+
+# Query for relevant information
+context = client.call_tool("search_vectors", {
+    "collection": "knowledge_base",
+    "query": user_question,
+    "limit": 5
+})
+```
+
+#### 3. Agent Tool Memory
+Store tool usage patterns and outcomes:
+
+```python
+# Record tool usage
+client.call_tool("add_vectors", {
+    "collection": "tool_memory",
+    "vectors": [{
+        "content": f"Used {tool_name} with params {params} - Result: {result_summary}",
+        "metadata": {
+            "tool": tool_name,
+            "success": success,
+            "execution_time": exec_time,
+            "timestamp": timestamp
+        }
+    }]
+})
+
+# Learn from past tool usage
+past_usage = client.call_tool("search_vectors", {
+    "collection": "tool_memory",
+    "query": f"How to use {tool_name} effectively?",
+    "limit": 10,
+    "filters": {"success": True}
+})
+```
+
+### MCP Server Options
+
+```bash
+./build/embeddix-mcp [options]
+  -persistence string   Storage backend: memory, bolt, badger (default "memory")
+  -data string         Data directory path (default "./data")
+  -verbose            Enable verbose logging
+```
+
+For more MCP examples and detailed API documentation, see:
+- [MCP API Documentation](docs/MCP_API.md)
+- [MCP Examples](docs/MCP_EXAMPLES.md)
+- [MCP Implementation Plan](docs/MCP_IMPLEMENTATION_PLAN.md)
 
 ## API Usage
 
@@ -379,6 +666,7 @@ MIT License - see LICENSE file for details
 - [x] **Feedback & Learning System**: User feedback tracking and personalized search
 - [x] **Memory-Optimized Indexing**: Product Quantization with 256x compression
 - [x] **Multi-Level Caching**: Intelligent caching layer for improved performance
+- [x] **Model Context Protocol (MCP)**: LLM integration via standardized protocol
 
 ### 🚧 **In Progress**
 - [ ] **Hierarchical Indexing**: Two-level HNSW for massive scale

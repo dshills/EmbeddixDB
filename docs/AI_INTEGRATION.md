@@ -19,7 +19,7 @@ EmbeddixDB now includes comprehensive AI capabilities for intelligent document p
 
 ```bash
 # Start EmbeddixDB with AI features enabled
-./embeddixdb \
+./build/embeddix-api \
   -host 0.0.0.0 \
   -port 8080 \
   -db bolt \
@@ -451,7 +451,7 @@ RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnx
 # Build EmbeddixDB
 WORKDIR /app
 COPY . .
-RUN go build -o embeddixdb ./cmd/embeddixdb
+RUN go build -o embeddix-api ./cmd/embeddix-api
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
@@ -459,7 +459,7 @@ WORKDIR /root/
 
 # Copy ONNX Runtime libraries
 COPY --from=builder /usr/local/lib/ /usr/local/lib/
-COPY --from=builder /app/embeddixdb .
+COPY --from=builder /app/embeddix-api .
 
 # Create directories
 RUN mkdir -p /app/data /app/models /app/config
@@ -468,7 +468,7 @@ RUN mkdir -p /app/data /app/models /app/config
 COPY config/ /app/config/
 
 EXPOSE 8080
-CMD ["./embeddixdb", "-config", "/app/config/ai.yaml"]
+CMD ["./embeddix-api", "-config", "/app/config/ai.yaml"]
 ```
 
 ### Docker Compose with AI
@@ -626,7 +626,7 @@ Enable debug logging for detailed troubleshooting:
 
 ```bash
 # Start with debug logging
-./embeddixdb -log-level debug -enable-ai-debug
+./build/embeddix-api -log-level debug -enable-ai-debug
 
 # Check logs
 curl http://localhost:8080/ai/system/logs

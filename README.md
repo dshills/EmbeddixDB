@@ -56,7 +56,7 @@ go mod download
 make build
 
 # Run the server
-./embeddixdb -host 0.0.0.0 -port 8080 -db bolt -path data/embeddix.db
+./build/embeddix-api -host 0.0.0.0 -port 8080 -db bolt -path data/embeddix.db
 ```
 
 ## API Usage
@@ -255,7 +255,7 @@ Run benchmarks to test performance on your hardware:
 make benchmark
 
 # Detailed benchmark with comparisons
-./embeddixdb-benchmark -vectors 10000 -queries 1000 -compare
+./build/embeddix-benchmark -vectors 10000 -queries 1000 -compare
 
 # Docker benchmark
 docker-compose --profile benchmark run benchmark
@@ -273,7 +273,7 @@ Example results on M1 MacBook Pro:
 ### Command Line Flags
 
 ```bash
-./embeddixdb \
+./build/embeddix-api \
   -host 0.0.0.0 \           # Host to bind to
   -port 8080 \              # Port to listen on
   -db bolt \                # Database type: memory, bolt, badger

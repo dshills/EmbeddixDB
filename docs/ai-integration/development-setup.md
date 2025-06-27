@@ -239,7 +239,14 @@ export OPENAI_API_KEY=sk-xxxx
 
 ```bash
 # Start development server with AI features
-go run cmd/server/main.go \
+go run cmd/embeddix-api/main.go \
+  --config=config/ai-config.yaml \
+  --log-level=debug \
+  --enable-ai=true \
+  --models-dir=./models
+
+# Or run the built binary
+./build/embeddix-api \
   --config=config/ai-config.yaml \
   --log-level=debug \
   --enable-ai=true \

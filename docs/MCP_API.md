@@ -9,23 +9,25 @@ The EmbeddixDB MCP (Model Context Protocol) server provides a standardized inter
 ### Building the MCP Server
 
 ```bash
-go build ./cmd/mcp-server/
+go build -o ./build/embeddix-mcp ./cmd/embeddix-mcp/
 ```
+
+The binary will be created in the `build/` directory.
 
 ### Running the MCP Server
 
 ```bash
 # Basic usage (in-memory storage)
-./mcp-server
+./build/embeddix-mcp
 
 # With BoltDB persistence
-./mcp-server -persistence bolt -data ./data
+./build/embeddix-mcp -persistence bolt -data ./data
 
 # With BadgerDB persistence
-./mcp-server -persistence badger -data ./data
+./build/embeddix-mcp -persistence badger -data ./data
 
 # Enable verbose logging
-./mcp-server -verbose
+./build/embeddix-mcp -verbose
 ```
 
 ### Command Line Options
@@ -289,7 +291,7 @@ import json
 import subprocess
 
 class MCPClient:
-    def __init__(self, server_path="./mcp-server"):
+    def __init__(self, server_path="./build/embeddix-mcp"):
         self.process = subprocess.Popen(
             [server_path],
             stdin=subprocess.PIPE,

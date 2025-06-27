@@ -1,7 +1,9 @@
 .PHONY: all build test clean run benchmark docker-build docker-run help
 
 # Variables
-BINARY_NAME=embeddixdb
+BINARY_NAME=embeddix-api
+BENCHMARK_NAME=embeddix-benchmark
+MCP_NAME=embeddix-mcp
 DOCKER_IMAGE=embeddixdb:latest
 GO=go
 GOFLAGS=-v
@@ -22,12 +24,25 @@ help:
 
 ## build: Build the server binary
 build:
-	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/server
+	@mkdir -p build
+	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/embeddix-api
+
+## build-mcp: Build the MCP server binary
+build-mcp:
+	@mkdir -p build
+	$(GO) build $(GOFLAGS) -o ./build/$(MCP_NAME) ./cmd/embeddix-mcp
+
+## build-benchmark: Build the benchmark binary
+build-benchmark:
+	@mkdir -p build
+	$(GO) build $(GOFLAGS) -o ./build/$(BENCHMARK_NAME) ./cmd/embeddix-benchmark
 
 ## build-all: Build all binaries
 build-all:
-	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/server
-	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME)-benchmark ./cmd/benchmark
+	@mkdir -p build
+	$(GO) build $(GOFLAGS) -o ./build/$(BINARY_NAME) ./cmd/embeddix-api
+	$(GO) build $(GOFLAGS) -o ./build/$(BENCHMARK_NAME) ./cmd/embeddix-benchmark
+	$(GO) build $(GOFLAGS) -o ./build/$(MCP_NAME) ./cmd/embeddix-mcp
 
 install: build
 	cp ./build/$(BINARY_NAME) /Users/dshills/Development/Go/bin/.
@@ -73,7 +88,7 @@ test-coverage-all:
 
 ## benchmark: Run benchmarks
 benchmark:
-	$(GO) run ./cmd/benchmark -vectors 1000 -queries 100
+	$(GO) run ./cmd/embeddix-benchmark -vectors 1000 -queries 100
 
 ## benchmark-go: Run Go benchmark tests
 benchmark-go:
@@ -81,7 +96,7 @@ benchmark-go:
 
 ## run: Run the server
 run:
-	$(GO) run ./cmd/server
+	$(GO) run ./cmd/embeddix-api
 
 ## run-dev: Run with hot reload (requires air)
 run-dev:
@@ -89,7 +104,7 @@ run-dev:
 
 ## clean: Clean build artifacts
 clean:
-	rm -f $(BINARY_NAME) $(BINARY_NAME)-benchmark
+	rm -f ./build/$(BINARY_NAME) ./build/$(BENCHMARK_NAME) ./build/$(MCP_NAME)
 	rm -f coverage.out coverage.html coverage-all.out coverage-all.html
 	rm -rf tmp/
 	rm -rf data/
@@ -154,16 +169,16 @@ generate:
 # Performance testing targets
 ## perf-memory: Run memory performance test
 perf-memory:
-	$(GO) run ./cmd/benchmark -db memory -vectors 10000 -queries 1000
+	$(GO) run ./cmd/embeddix-benchmark -db memory -vectors 10000 -queries 1000
 
 ## perf-bolt: Run BoltDB performance test
 perf-bolt:
-	$(GO) run ./cmd/benchmark -db bolt -vectors 10000 -queries 1000
+	$(GO) run ./cmd/embeddix-benchmark -db bolt -vectors 10000 -queries 1000
 
 ## perf-badger: Run BadgerDB performance test
 perf-badger:
-	$(GO) run ./cmd/benchmark -db badger -vectors 10000 -queries 1000
+	$(GO) run ./cmd/embeddix-benchmark -db badger -vectors 10000 -queries 1000
 
 ## perf-compare: Compare index performance
 perf-compare:
-	$(GO) run ./cmd/benchmark -db memory -index flat -vectors 5000 -compare
+	$(GO) run ./cmd/embeddix-benchmark -db memory -index flat -vectors 5000 -compare

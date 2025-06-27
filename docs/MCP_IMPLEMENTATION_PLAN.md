@@ -38,7 +38,7 @@ embeddixdb/
 │       ├── server_test.go
 │       ├── handlers_test.go
 │       └── integration_test.go
-├── cmd/mcp-server/
+├── cmd/embeddix-mcp/
 │   └── main.go            # MCP server executable
 └── docs/
     ├── MCP_API.md         # MCP tool documentation
@@ -61,7 +61,7 @@ embeddixdb/
    - [ ] Create `mcp/` package structure
    - [ ] Implement basic MCP server using JSON-RPC
    - [ ] Add server configuration and initialization
-   - [ ] Create `cmd/mcp-server/main.go` executable
+   - [ ] Create `cmd/embeddix-mcp/main.go` executable
 
 2. **Core Tool Definitions**
    - [ ] Define tool schemas in `tools.go`

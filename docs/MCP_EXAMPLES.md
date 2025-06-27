@@ -8,10 +8,10 @@ This example demonstrates a complete workflow using the MCP server to store and 
 
 ```bash
 # Start with in-memory storage (for testing)
-./mcp-server -verbose
+./build/embeddix-mcp -verbose
 
 # Or with persistent storage
-./mcp-server -persistence bolt -data ./data -verbose
+./build/embeddix-mcp -persistence bolt -data ./data -verbose
 ```
 
 ### 2. Initialize Connection

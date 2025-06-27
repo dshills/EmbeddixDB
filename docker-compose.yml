@@ -27,8 +27,8 @@ services:
     build: .
     image: embeddixdb:latest
     container_name: embeddixdb_benchmark
-    entrypoint: ["./embeddixdb"]
-    command: ["benchmark", "-vectors", "10000", "-queries", "1000", "-db", "memory"]
+    entrypoint: ["./embeddix-benchmark"]
+    command: ["-vectors", "10000", "-queries", "1000", "-db", "memory"]
     depends_on:
       embeddixdb:
         condition: service_healthy

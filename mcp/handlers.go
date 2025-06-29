@@ -387,11 +387,15 @@ func (h *CreateCollectionHandler) Execute(ctx context.Context, args map[string]i
 		return nil, fmt.Errorf("name is required")
 	}
 
-	dimensionFloat, ok := args["dimension"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("dimension is required")
+	// Try to get dimension as either int or float64
+	var dimension int
+	if dimInt, ok := args["dimension"].(int); ok {
+		dimension = dimInt
+	} else if dimFloat, ok := args["dimension"].(float64); ok {
+		dimension = int(dimFloat)
+	} else {
+		return nil, fmt.Errorf("dimension is required (got type %T)", args["dimension"])
 	}
-	dimension := int(dimensionFloat)
 
 	// Parse optional fields
 	distance := "cosine"

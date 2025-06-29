@@ -24,12 +24,39 @@ func NewVectorStore(persistence Persistence, indexFactory IndexFactory) *VectorS
 	profilerConfig := performance.DefaultProfilingConfig()
 	profilerConfig.Enabled = false // Disabled by default, can be enabled via SetProfiler
 
-	return &VectorStoreImpl{
+	vs := &VectorStoreImpl{
 		persistence:  persistence,
 		indexes:      make(map[string]Index),
 		indexFactory: indexFactory,
 		profiler:     performance.NewProfiler(profilerConfig),
 	}
+
+	// Initialize indexes for existing collections and load their vectors
+	ctx := context.Background()
+	if collections, err := persistence.LoadCollections(ctx); err == nil {
+		for _, collection := range collections {
+			// Create index for each existing collection
+			if err := vs.createIndex(collection); err != nil {
+				// Log error but continue - don't fail initialization
+				fmt.Printf("Warning: failed to create index for collection %s: %v\n", collection.Name, err)
+				continue
+			}
+
+			// Load vectors into the index
+			if vectors, err := persistence.LoadVectors(ctx, collection.Name); err == nil {
+				if index, exists := vs.indexes[collection.Name]; exists {
+					for _, vector := range vectors {
+						if err := index.Add(vector); err != nil {
+							// Log error but continue
+							fmt.Printf("Warning: failed to add vector %s to index: %v\n", vector.ID, err)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return vs
 }
 
 // SetProfiler sets a custom profiler for performance monitoring
@@ -91,23 +118,23 @@ func (vs *VectorStoreImpl) AddVector(ctx context.Context, collection string, vec
 		return fmt.Errorf("failed to save vector: %w", err)
 	}
 
+	// Get or create index for the collection
+	index, err := vs.getOrCreateIndex(ctx, coll)
+	if err != nil {
+		return fmt.Errorf("failed to get index: %w", err)
+	}
+
 	// Add to index
-	vs.mu.RLock()
-	index, exists := vs.indexes[collection]
-	vs.mu.RUnlock()
+	if err := index.Add(vec); err != nil {
+		return fmt.Errorf("failed to add to index: %w", err)
+	}
 
-	if exists {
-		if err := index.Add(vec); err != nil {
-			return fmt.Errorf("failed to add to index: %w", err)
-		}
-
-		// Save updated index state (best effort - don't fail the operation if this fails)
-		if err := vs.saveIndexState(ctx, collection, index); err != nil {
-			// Note: We don't return this error because the vector was successfully added
-			// and the index was updated. The state can be recovered later if needed.
-			// In a production system, this should be logged
-			_ = err // Acknowledge we're intentionally ignoring this error
-		}
+	// Save updated index state (best effort - don't fail the operation if this fails)
+	if err := vs.saveIndexState(ctx, collection, index); err != nil {
+		// Note: We don't return this error because the vector was successfully added
+		// and the index was updated. The state can be recovered later if needed.
+		// In a production system, this should be logged
+		_ = err // Acknowledge we're intentionally ignoring this error
 	}
 
 	return nil

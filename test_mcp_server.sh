@@ -27,9 +27,9 @@ run_test() {
     echo -e "\n${YELLOW}Testing: ${test_name}${NC}"
     echo "Request: ${request}"
     
-    # Run the test - using bolt persistence for state persistence
+    # Run the test - using configuration file for Ollama support
     # Filter out non-JSON lines (stderr output) and get the JSON response
-    response=$(echo "${request}" | ./build/embeddix-mcp -persistence bolt -data "$TEST_DB_FILE" 2>&1 | grep '^{' | head -n 1)
+    response=$(echo "${request}" | ./build/embeddix-mcp -config ~/.embeddixdb.yml 2>&1 | grep '^{' | head -n 1)
     
     # Check if response is valid JSON
     if ! echo "${response}" | jq . >/dev/null 2>&1; then
@@ -117,6 +117,12 @@ fi
 
 echo -e "${GREEN}Build successful!${NC}"
 
+# Clean up any existing database
+rm -f /Users/dshills/.embeddixdb/data/embeddix.db
+
+# Generate 768-dimensional test vector
+TEST_VECTOR=$(python3 -c "import json; print(json.dumps([round((i % 10 + 1) * 0.1, 1) for i in range(768)]))")
+
 # Run tests
 echo -e "\n${YELLOW}Running tests with BoltDB persistence...${NC}"
 
@@ -130,9 +136,9 @@ run_test "Tools List" \
     '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":2}' \
     '.result.tools'
 
-# Test 3: Create collection
+# Test 3: Create collection (768 dimensions for nomic-embed-text)
 run_test "Create Collection" \
-    '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"create_collection","arguments":{"name":"test_collection","dimension":384,"distance":"cosine","indexType":"hnsw"}},"id":3}' \
+    '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"create_collection","arguments":{"name":"test_collection","dimension":768,"distance":"cosine","indexType":"hnsw"}},"id":3}' \
     '.result.content'
 
 # Test 4: List collections (should show our created collection)
@@ -140,14 +146,14 @@ run_test "List Collections" \
     '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_collections","arguments":{}},"id":4}' \
     '.result.content'
 
-# Test 5: Add vectors with content (will use mock embedding)
+# Test 5: Add vectors with content (will use Ollama embedding)
 run_test "Add Vectors with Content" \
     '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"add_vectors","arguments":{"collection":"test_collection","vectors":[{"id":"vec1","content":"This is a test document about machine learning","metadata":{"type":"document","category":"ML"}},{"id":"vec2","content":"Neural networks are powerful tools","metadata":{"type":"document","category":"AI"}}]}},"id":5}' \
     '.result.content'
 
-# Test 6: Add vectors with raw vector data
+# Test 6: Add vectors with raw vector data (768 dimensions)
 run_test "Add Vectors with Raw Data" \
-    '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"add_vectors","arguments":{"collection":"test_collection","vectors":[{"id":"vec3","vector":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4],"metadata":{"type":"synthetic","id":"3"}}]}},"id":6}' \
+    "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"add_vectors\",\"arguments\":{\"collection\":\"test_collection\",\"vectors\":[{\"id\":\"vec3\",\"vector\":${TEST_VECTOR},\"metadata\":{\"type\":\"synthetic\",\"id\":\"3\"}}]}},\"id\":6}" \
     '.result.content'
 
 # Test 7: Get specific vector
@@ -156,14 +162,13 @@ run_test "Get Vector" \
     '.result.content'
 
 # Test 8: Search vectors by query
-run_test "Search Vectors by Query (Expected to fail - no embedding)" \
+run_test "Search Vectors by Query" \
     '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search_vectors","arguments":{"collection":"test_collection","query":"machine learning neural networks","limit":3}},"id":8}' \
-    '' \
-    'true'
+    '.result.content'
 
-# Test 9: Search vectors with raw vector
+# Test 9: Search vectors with raw vector (768 dimensions)
 run_test "Search Vectors with Raw Vector" \
-    '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search_vectors","arguments":{"collection":"test_collection","vector":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,0.1,0.2,0.3,0.4],"limit":2}},"id":9}' \
+    "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"search_vectors\",\"arguments\":{\"collection\":\"test_collection\",\"vector\":${TEST_VECTOR},\"limit\":2}},\"id\":9}" \
     '.result.content'
 
 # Test 10: Delete vector
@@ -195,6 +200,7 @@ run_test "List Collections After Deletion" \
 # Cleanup
 echo -e "\n${YELLOW}Cleaning up test data...${NC}"
 rm -rf "$TEST_DATA_DIR"
+rm -f generate_test_vector.py
 
 # Test summary
 echo -e "\n${YELLOW}========================================${NC}"

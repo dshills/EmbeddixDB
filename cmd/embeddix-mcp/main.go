@@ -106,6 +106,18 @@ func main() {
 			log.Fatalf("Failed to create embedding engine: %v", err)
 		}
 
+		// Warm up the engine (required for Ollama and other engines)
+		warmCtx := context.Background()
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "Warming up embedding engine...\n")
+		}
+		if err := embedder.Warm(warmCtx); err != nil {
+			log.Fatalf("Failed to warm up embedding engine: %v", err)
+		}
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "Embedding engine warmed up successfully\n")
+		}
+
 		embeddingStore, err := mcp.CreateEmbeddingStoreWithEngine(store, embedder)
 		if err != nil {
 			log.Fatalf("Failed to create embedding store: %v", err)
@@ -113,7 +125,7 @@ func main() {
 		store = embeddingStore
 
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "Embedding support enabled with engine: %s, model: %s\n", 
+			fmt.Fprintf(os.Stderr, "Embedding support enabled with engine: %s, model: %s\n",
 				cfg.AI.Embedding.Engine, cfg.AI.Embedding.Model)
 		}
 	}

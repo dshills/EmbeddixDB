@@ -67,9 +67,9 @@ func setupTestHandler() (*APIHandler, *DefaultModelManager, core.VectorStore) {
 
 	// Load a test model
 	config := ModelConfig{
-		Name:      "test-model",
-		Type:      "onnx",
-		MaxTokens: 512,
+		Name:       "test-model",
+		Type:       "onnx",
+		MaxTokens:  512,
 		Dimensions: 384,
 	}
 	err := modelManager.LoadModel(context.Background(), "test-model", config)

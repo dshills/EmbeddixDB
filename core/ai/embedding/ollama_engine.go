@@ -168,7 +168,7 @@ func (e *OllamaEmbeddingEngine) Warm(ctx context.Context) error {
 	e.mu.Lock()
 	e.initialized = true
 	e.mu.Unlock()
-	
+
 	return nil
 }
 

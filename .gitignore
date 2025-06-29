@@ -37,6 +37,7 @@ c.out
 unit-tests.xml
 coverage.html
 godog.json
+*.test
 
 # Test Output
 test/testdata/*/output

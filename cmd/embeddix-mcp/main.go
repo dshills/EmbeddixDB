@@ -108,15 +108,11 @@ func main() {
 
 		// Warm up the engine (required for Ollama and other engines)
 		warmCtx := context.Background()
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "Warming up embedding engine...\n")
-		}
+		fmt.Fprintf(os.Stderr, "Warming up embedding engine...\n")
 		if err := embedder.Warm(warmCtx); err != nil {
 			log.Fatalf("Failed to warm up embedding engine: %v", err)
 		}
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "Embedding engine warmed up successfully\n")
-		}
+		fmt.Fprintf(os.Stderr, "Embedding engine warmed up successfully\n")
 
 		embeddingStore, err := mcp.CreateEmbeddingStoreWithEngine(store, embedder)
 		if err != nil {
@@ -124,10 +120,8 @@ func main() {
 		}
 		store = embeddingStore
 
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "Embedding support enabled with engine: %s, model: %s\n",
-				cfg.AI.Embedding.Engine, cfg.AI.Embedding.Model)
-		}
+		fmt.Fprintf(os.Stderr, "Embedding support enabled with engine: %s, model: %s\n",
+			cfg.AI.Embedding.Engine, cfg.AI.Embedding.Model)
 	}
 
 	// Create MCP server
@@ -148,18 +142,62 @@ func main() {
 		cancel()
 	}()
 
-	// Log startup message to stderr (MCP uses stdout for communication)
-	if *verbose {
-		fmt.Fprintf(os.Stderr, "EmbeddixDB MCP Server starting...\n")
-		fmt.Fprintf(os.Stderr, "Persistence: %s\n", cfg.Persistence.Type)
-		fmt.Fprintf(os.Stderr, "Data path: %s\n", cfg.Persistence.Path)
-		if cfg.AI.Embedding.Engine != "" {
-			fmt.Fprintf(os.Stderr, "AI Engine: %s\n", cfg.AI.Embedding.Engine)
-			if cfg.AI.Embedding.Engine == "ollama" {
-				fmt.Fprintf(os.Stderr, "Ollama Endpoint: %s\n", cfg.AI.Embedding.Ollama.Endpoint)
-			}
+	// Log startup message and configuration to stderr (MCP uses stdout for communication)
+	fmt.Fprintf(os.Stderr, "=== EmbeddixDB MCP Server Configuration ===\n")
+	fmt.Fprintf(os.Stderr, "\n[Server Settings]\n")
+	fmt.Fprintf(os.Stderr, "  Host: %s\n", cfg.Server.Host)
+	fmt.Fprintf(os.Stderr, "  Port: %d\n", cfg.Server.Port)
+	fmt.Fprintf(os.Stderr, "  Read Timeout: %v\n", cfg.Server.ReadTimeout)
+	fmt.Fprintf(os.Stderr, "  Write Timeout: %v\n", cfg.Server.WriteTimeout)
+	fmt.Fprintf(os.Stderr, "  Shutdown Timeout: %v\n", cfg.Server.ShutdownTimeout)
+	
+	fmt.Fprintf(os.Stderr, "\n[Persistence]\n")
+	fmt.Fprintf(os.Stderr, "  Type: %s\n", cfg.Persistence.Type)
+	fmt.Fprintf(os.Stderr, "  Path: %s\n", cfg.Persistence.Path)
+	if len(cfg.Persistence.Options) > 0 {
+		fmt.Fprintf(os.Stderr, "  Options:\n")
+		for k, v := range cfg.Persistence.Options {
+			fmt.Fprintf(os.Stderr, "    %s: %v\n", k, v)
 		}
 	}
+	
+	fmt.Fprintf(os.Stderr, "\n[Vector Store]\n")
+	fmt.Fprintf(os.Stderr, "  Default Index Type: %s\n", cfg.VectorStore.DefaultIndexType)
+	fmt.Fprintf(os.Stderr, "  Default Distance Metric: %s\n", cfg.VectorStore.DefaultDistanceMetric)
+	
+	if cfg.AI.Embedding.Engine != "" || *enableEmbedding {
+		fmt.Fprintf(os.Stderr, "\n[AI/Embedding]\n")
+		fmt.Fprintf(os.Stderr, "  Engine: %s\n", cfg.AI.Embedding.Engine)
+		fmt.Fprintf(os.Stderr, "  Model: %s\n", cfg.AI.Embedding.Model)
+		fmt.Fprintf(os.Stderr, "  Batch Size: %d\n", cfg.AI.Embedding.BatchSize)
+		fmt.Fprintf(os.Stderr, "  Max Queue Size: %d\n", cfg.AI.Embedding.MaxQueueSize)
+		
+		if cfg.AI.Embedding.Engine == "ollama" {
+			fmt.Fprintf(os.Stderr, "  Ollama Endpoint: %s\n", cfg.AI.Embedding.Ollama.Endpoint)
+			fmt.Fprintf(os.Stderr, "  Ollama Timeout: %v\n", cfg.AI.Embedding.Ollama.Timeout)
+		} else if cfg.AI.Embedding.Engine == "onnx" || *modelPath != "" {
+			modelPathStr := cfg.AI.Embedding.ONNX.ModelPath
+			if *modelPath != "" {
+				modelPathStr = *modelPath
+			}
+			fmt.Fprintf(os.Stderr, "  ONNX Model Path: %s\n", modelPathStr)
+			fmt.Fprintf(os.Stderr, "  ONNX Use GPU: %v\n", cfg.AI.Embedding.ONNX.UseGPU)
+			fmt.Fprintf(os.Stderr, "  ONNX Threads: %d\n", cfg.AI.Embedding.ONNX.NumThreads)
+		}
+	}
+	
+	fmt.Fprintf(os.Stderr, "\n[Runtime Settings]\n")
+	fmt.Fprintf(os.Stderr, "  Config Path: %s\n", func() string {
+		if *configPath != "" {
+			return *configPath
+		}
+		return "~/.embeddixdb.yml (default)"
+	}())
+	fmt.Fprintf(os.Stderr, "  Verbose Mode: %v\n", *verbose)
+	fmt.Fprintf(os.Stderr, "  Embedding Enabled: %v\n", *enableEmbedding || cfg.AI.Embedding.Engine != "")
+	
+	fmt.Fprintf(os.Stderr, "\n==========================================\n")
+	fmt.Fprintf(os.Stderr, "Starting MCP server...\n\n")
 
 	// Start serving
 	if err := server.Serve(ctx); err != nil && err != context.Canceled {

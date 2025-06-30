@@ -141,3 +141,171 @@ The next major development phase focuses on **Performance Optimizations** as out
 - **>200 QPS throughput** for concurrent agents
 - **40% memory reduction** through intelligent caching
 - **Zero regression** in search quality or reliability
+
+## EmbeddixDB Memory Usage for This Project
+
+This project uses its own EmbeddixDB instance for persistent memory storage. When working on this codebase, use the MCP tools to store and retrieve relevant information.
+
+### Available MCP Tools
+
+You have access to these EmbeddixDB tools via MCP:
+- `mcp__embeddixdb__search_vectors` - Search for similar memories using semantic similarity
+- `mcp__embeddixdb__add_vectors` - Store new memories with auto-embedding
+- `mcp__embeddixdb__get_vector` - Retrieve specific memories by ID
+- `mcp__embeddixdb__delete_vector` - Remove outdated memories
+- `mcp__embeddixdb__create_collection` - Create new memory collections
+- `mcp__embeddixdb__list_collections` - View existing collections
+- `mcp__embeddixdb__delete_collection` - Remove collections
+
+### Memory Collections Schema
+
+Create and use these collections for project memory:
+
+1. **`embeddixdb_development`** - Technical decisions and implementation details
+   - Dimension: 384 (or match your embedding model)
+   - Distance: cosine
+   - Metadata fields:
+     - `type`: "architecture" | "implementation" | "bug_fix" | "optimization" | "decision"
+     - `component`: Specific module/package (e.g., "core", "mcp", "api", "quantization")
+     - `version`: Project version when added
+     - `importance`: "high" | "medium" | "low"
+     - `tags`: Array of relevant keywords
+
+2. **`embeddixdb_conversations`** - User interactions and context
+   - Dimension: 384
+   - Distance: cosine
+   - Metadata fields:
+     - `session_id`: Current conversation session
+     - `user_intent`: Detected intent of the request
+     - `outcome`: Result or resolution
+     - `timestamp`: When the interaction occurred
+
+3. **`embeddixdb_issues`** - Known issues and their solutions
+   - Dimension: 384
+   - Distance: cosine
+   - Metadata fields:
+     - `status`: "open" | "resolved" | "workaround"
+     - `error_type`: Category of issue
+     - `solution`: How it was fixed
+     - `affected_versions`: Versions with this issue
+
+### Usage Examples
+
+#### Storing Development Decisions
+```json
+{
+  "collection": "embeddixdb_development",
+  "vectors": [{
+    "content": "Implemented Product Quantization for HNSW index achieving 256x memory compression. Uses 256 centroids with 8-bit scalar quantization for subvectors. Maintains 95% recall@10 with proper reranking.",
+    "metadata": {
+      "type": "optimization",
+      "component": "quantization",
+      "version": "v2.2",
+      "importance": "high",
+      "tags": ["performance", "memory", "indexing", "phase4"]
+    }
+  }]
+}
+```
+
+#### Searching for Implementation Details
+```json
+{
+  "collection": "embeddixdb_development",
+  "query": "How is quantization implemented in HNSW?",
+  "limit": 5,
+  "filters": {
+    "component": "quantization",
+    "type": "implementation"
+  }
+}
+```
+
+#### Storing Issue Resolutions
+```json
+{
+  "collection": "embeddixdb_issues",
+  "vectors": [{
+    "content": "Race condition in feedback collector when concurrent goroutines update click-through rates. Fixed by adding mutex protection in UpdateClickThroughRate method.",
+    "metadata": {
+      "status": "resolved",
+      "error_type": "concurrency",
+      "solution": "Added sync.Mutex to FeedbackCollector struct",
+      "affected_versions": ["v2.0", "v2.1"]
+    }
+  }]
+}
+```
+
+### Best Practices
+
+1. **Always search before implementing** - Check if similar problems have been solved:
+   ```json
+   {
+     "collection": "embeddixdb_development",
+     "query": "concurrency issues in feedback system",
+     "limit": 10
+   }
+   ```
+
+2. **Store significant decisions** - Document why certain approaches were chosen:
+   ```json
+   {
+     "collection": "embeddixdb_development",
+     "vectors": [{
+       "content": "Chose BoltDB over BadgerDB for default persistence due to simpler API and better stability for embedded use cases. BadgerDB offers better performance but requires more careful tuning.",
+       "metadata": {
+         "type": "decision",
+         "component": "persistence",
+         "importance": "high",
+         "tags": ["storage", "performance", "tradeoffs"]
+       }
+     }]
+   }
+   ```
+
+3. **Track conversation context** - Maintain continuity across interactions:
+   ```json
+   {
+     "collection": "embeddixdb_conversations",
+     "vectors": [{
+       "content": "User requested implementation of GPU acceleration for similarity search. Discussed CUDA kernel design and memory transfer optimization strategies.",
+       "metadata": {
+         "session_id": "session_123",
+         "user_intent": "performance_optimization",
+         "outcome": "planned_for_phase5",
+         "timestamp": "2024-01-15T10:00:00Z"
+       }
+     }]
+   }
+   ```
+
+4. **Regular memory search** - Before starting any task, search relevant memories:
+   - Search for similar features/implementations
+   - Check for known issues in the component
+   - Review past decisions and their rationales
+
+5. **Update memories** - When implementations change, add new memories linking to old ones:
+   ```json
+   {
+     "collection": "embeddixdb_development",
+     "vectors": [{
+       "content": "Refactored quantization to use interface-based design, replacing hardcoded PQ implementation. Now supports multiple quantization strategies via Quantizer interface.",
+       "metadata": {
+         "type": "implementation",
+         "component": "quantization",
+         "version": "v2.3",
+         "importance": "medium",
+         "tags": ["refactoring", "interfaces", "extensibility"],
+         "replaces": "vector_id_of_old_implementation"
+       }
+     }]
+   }
+   ```
+
+### Memory Maintenance
+
+- Periodically search for outdated information and update it
+- Use metadata filters to find memories by component when refactoring
+- Tag memories with version numbers to track evolution
+- Set importance levels to prioritize retrieval of critical information

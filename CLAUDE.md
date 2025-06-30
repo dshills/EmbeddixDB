@@ -309,3 +309,7 @@ Create and use these collections for project memory:
 - Use metadata filters to find memories by component when refactoring
 - Tag memories with version numbers to track evolution
 - Set importance levels to prioritize retrieval of critical information
+
+## Memory Usage Tools
+
+- **Use embeddix tool to store and find important information about the project**

@@ -220,11 +220,12 @@ curl -X POST http://localhost:8080/collections/docs/search/text \
 
 ## Performance
 
-On M1 MacBook Pro (16GB RAM):
-- **Search Speed**: ~65,000 queries/sec (HNSW, 1M vectors)
-- **Insert Speed**: ~45,000 vectors/sec (batch mode)
-- **Memory Usage**: 8.2 MB for 1M vectors with quantization (256x compression)
-- **Accuracy**: >95% recall@10 with HNSW index
+On Apple M4 Pro (64GB RAM):
+- **Search Speed**: ~25,374 queries/sec (concurrent, flat index, 1K vectors)
+- **Insert Speed**: ~32,113 vectors/sec (batch mode)
+- **Get Vector**: ~13.5M ops/sec
+- **Memory Usage**: 5.6 MB for 1K vectors (128 dimensions)
+- **Latency**: Search P95 < 180µs, Insert P95 < 6ms
 
 Run benchmarks on your hardware:
 ```bash

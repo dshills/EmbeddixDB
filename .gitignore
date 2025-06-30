@@ -67,11 +67,6 @@ tmp/
 
 # Demo and test data directories
 data/
-# Exception: Include project knowledge base
-!data/
-!data/embeddix-memory.db
-data/*
-!data/embeddix-memory.db
 backups/
 exports/
 

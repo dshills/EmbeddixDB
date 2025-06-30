@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/dshills/EmbeddixDB/config"
@@ -17,6 +19,102 @@ import (
 	"github.com/dshills/EmbeddixDB/mcp"
 	"github.com/dshills/EmbeddixDB/persistence"
 )
+
+// resolveDatabasePath determines the database path using the following priority:
+// 1. EMBEDDIXDB_DATA_DIR environment variable (explicit override)
+// 2. CLAUDE_WORKING_DIR environment variable + /.embeddixdb/
+// 3. Current working directory + /.embeddixdb/
+// 4. ~/.embeddixdb/default/ (global fallback)
+//
+// Safety considerations:
+// - Creates a dedicated .embeddixdb/ directory to avoid conflicts
+// - Uses safe file permissions (0755 for directories, 0600 for BoltDB files)
+// - Avoids overwriting existing user files by using dedicated subdirectory
+func resolveDatabasePath() (string, error) {
+	// Priority 1: Explicit override via environment variable
+	if dataDir := os.Getenv("EMBEDDIXDB_DATA_DIR"); dataDir != "" {
+		if err := os.MkdirAll(dataDir, 0755); err != nil {
+			return "", fmt.Errorf("failed to create data directory %s: %v", dataDir, err)
+		}
+		return dataDir, nil
+	}
+
+	// Priority 2: Claude working directory
+	if claudeDir := os.Getenv("CLAUDE_WORKING_DIR"); claudeDir != "" {
+		dbPath := filepath.Join(claudeDir, ".embeddixdb")
+		if err := os.MkdirAll(dbPath, 0755); err != nil {
+			return "", fmt.Errorf("failed to create database directory %s: %v", dbPath, err)
+		}
+		return dbPath, nil
+	}
+
+	// Priority 3: Current working directory
+	if cwd, err := os.Getwd(); err == nil {
+		dbPath := filepath.Join(cwd, ".embeddixdb")
+		if err := os.MkdirAll(dbPath, 0755); err == nil {
+			return dbPath, nil
+		}
+		// If we can't create in current directory, continue to fallback
+	}
+
+	// Priority 4: Global fallback in user home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %v", err)
+	}
+	
+	globalPath := filepath.Join(homeDir, ".embeddixdb", "default")
+	if err := os.MkdirAll(globalPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to create global database directory %s: %v", globalPath, err)
+	}
+	
+	return globalPath, nil
+}
+
+// checkDatabaseSafety performs safety checks on the resolved database path
+// to warn about potential conflicts with existing files
+func checkDatabaseSafety(dbPath string, persistenceType persistence.PersistenceType) {
+	if persistenceType == persistence.PersistenceMemory {
+		return // Memory backend creates no files
+	}
+	
+	// For BoltDB, show what file will be created/used
+	if persistenceType == persistence.PersistenceBolt {
+		// dbPath is already the full file path for BoltDB
+		if _, err := os.Stat(dbPath); err == nil {
+			fmt.Fprintf(os.Stderr, "ℹ️  Using existing BoltDB file: %s\n", dbPath)
+		} else {
+			fmt.Fprintf(os.Stderr, "ℹ️  Will create new BoltDB file: %s\n", dbPath)
+		}
+		
+		// Check the directory for potential conflicts
+		dbDir := filepath.Dir(dbPath)
+		conflictFiles := []string{
+			"embeddixdb.db",      // Alternative naming
+			"database.db",        // Common database file
+			"data.db",           // Generic data file
+		}
+		
+		for _, filename := range conflictFiles {
+			if filename == filepath.Base(dbPath) {
+				continue // Skip the actual database file
+			}
+			fullPath := filepath.Join(dbDir, filename)
+			if _, err := os.Stat(fullPath); err == nil {
+				fmt.Fprintf(os.Stderr, "⚠️  WARNING: Other database file found: %s\n", fullPath)
+				fmt.Fprintf(os.Stderr, "   Multiple database files in same directory may cause confusion.\n")
+			}
+		}
+	}
+	
+	// For BadgerDB, show directory usage
+	if persistenceType == persistence.PersistenceBadger {
+		fmt.Fprintf(os.Stderr, "ℹ️  BadgerDB will use directory: %s\n", dbPath)
+		if entries, err := os.ReadDir(dbPath); err == nil && len(entries) > 0 {
+			fmt.Fprintf(os.Stderr, "   Directory contains %d existing files/subdirectories\n", len(entries))
+		}
+	}
+}
 
 func main() {
 	// Command line flags
@@ -52,6 +150,23 @@ func main() {
 	if *dataPath != "" {
 		cfg.Persistence.Path = *dataPath
 		cfg.Persistence.Options["path"] = *dataPath
+	} else {
+		// Use dynamic path resolution when no explicit path is provided
+		resolvedPath, err := resolveDatabasePath()
+		if err != nil {
+			log.Fatalf("Failed to resolve database path: %v", err)
+		}
+		
+		// Adjust path based on persistence type
+		finalPath := resolvedPath
+		if cfg.Persistence.Type == persistence.PersistenceBolt {
+			// BoltDB needs a file path, not directory
+			finalPath = filepath.Join(resolvedPath, "embeddix.db")
+		}
+		// BadgerDB and Memory use directory path as-is
+		
+		cfg.Persistence.Path = finalPath
+		cfg.Persistence.Options["path"] = finalPath
 	}
 	if *modelPath != "" {
 		cfg.AI.Embedding.ONNX.ModelPath = *modelPath
@@ -62,6 +177,9 @@ func main() {
 
 	// Create persistence configuration
 	persistenceConfig := cfg.Persistence
+	
+	// Perform safety checks for database path
+	checkDatabaseSafety(cfg.Persistence.Path, cfg.Persistence.Type)
 
 	// Create persistence factory and persistence backend
 	persistenceFactory := persistence.NewDefaultFactory()
@@ -154,6 +272,29 @@ func main() {
 	fmt.Fprintf(os.Stderr, "\n[Persistence]\n")
 	fmt.Fprintf(os.Stderr, "  Type: %s\n", cfg.Persistence.Type)
 	fmt.Fprintf(os.Stderr, "  Path: %s\n", cfg.Persistence.Path)
+	
+	// Show how the path was resolved
+	if *dataPath != "" {
+		fmt.Fprintf(os.Stderr, "  Path Source: Command line flag --data\n")
+	} else {
+		var pathSource string
+		if os.Getenv("EMBEDDIXDB_DATA_DIR") != "" {
+			pathSource = "Environment variable EMBEDDIXDB_DATA_DIR"
+		} else if os.Getenv("CLAUDE_WORKING_DIR") != "" {
+			pathSource = "Claude working directory + .embeddixdb"
+		} else if cwd, err := os.Getwd(); err == nil {
+			// Check if the path starts with current directory
+			expectedDir := filepath.Join(cwd, ".embeddixdb")
+			if strings.HasPrefix(cfg.Persistence.Path, expectedDir) {
+				pathSource = "Current working directory + .embeddixdb"
+			} else {
+				pathSource = "Global fallback (~/.embeddixdb/default)"
+			}
+		} else {
+			pathSource = "Global fallback (~/.embeddixdb/default)"
+		}
+		fmt.Fprintf(os.Stderr, "  Path Source: %s\n", pathSource)
+	}
 	if len(cfg.Persistence.Options) > 0 {
 		fmt.Fprintf(os.Stderr, "  Options:\n")
 		for k, v := range cfg.Persistence.Options {

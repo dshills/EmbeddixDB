@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "embeddixdb": {
+      "command": "/usr/local/bin/embeddix-mcp",
+      "args": []
+    }
+  }
+}

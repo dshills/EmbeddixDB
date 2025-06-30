@@ -44,8 +44,9 @@ build-all:
 	$(GO) build $(GOFLAGS) -o ./build/$(BENCHMARK_NAME) ./cmd/embeddix-benchmark
 	$(GO) build $(GOFLAGS) -o ./build/$(MCP_NAME) ./cmd/embeddix-mcp
 
-install: build
-	cp ./build/$(BINARY_NAME) /Users/dshills/Development/Go/bin/.
+install: build-all
+	cp ./build/$(BINARY_NAME) $$(go env GOBIN)/.
+	cp ./build/$(MCP_NAME) $$(go env GOBIN)/.
 
 ## test: Run fast tests only (excludes integration tests and benchmarks)
 test:

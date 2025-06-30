@@ -15,11 +15,11 @@ func GetTools() []Tool {
 					},
 					"query": {
 						Type:        "string",
-						Description: "Text query for semantic search",
+						Description: "Text query for semantic search (provide either query or vector)",
 					},
 					"vector": {
 						Type:        "array",
-						Description: "Raw vector for similarity search",
+						Description: "Raw vector for similarity search (provide either query or vector)",
 						Items: &Property{
 							Type: "number",
 						},
@@ -48,10 +48,6 @@ func GetTools() []Tool {
 					},
 				},
 				Required: []string{"collection"},
-				OneOf: []map[string][]string{
-					{"required": []string{"query"}},
-					{"required": []string{"vector"}},
-				},
 			},
 		},
 		{

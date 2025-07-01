@@ -148,7 +148,9 @@ This project uses its own EmbeddixDB instance for persistent memory storage. Whe
 
 ### Available MCP Tools
 
-You have access to these EmbeddixDB tools via MCP:
+You have access to these database tools via MCP:
+
+#### EmbeddixDB (Vector Database)
 - `mcp__embeddixdb__search_vectors` - Search for similar memories using semantic similarity
 - `mcp__embeddixdb__add_vectors` - Store new memories with auto-embedding
 - `mcp__embeddixdb__get_vector` - Retrieve specific memories by ID
@@ -156,6 +158,15 @@ You have access to these EmbeddixDB tools via MCP:
 - `mcp__embeddixdb__create_collection` - Create new memory collections
 - `mcp__embeddixdb__list_collections` - View existing collections
 - `mcp__embeddixdb__delete_collection` - Remove collections
+
+#### RelatixDB (Graph Database)
+- `mcp__relatixdb__add_node` - Add nodes with ID, type, and properties
+- `mcp__relatixdb__add_edge` - Create directed edges between nodes with labels
+- `mcp__relatixdb__delete_node` - Remove nodes and their edges
+- `mcp__relatixdb__delete_edge` - Remove specific edges
+- `mcp__relatixdb__query_neighbors` - Find connected nodes
+- `mcp__relatixdb__query_paths` - Find paths between nodes
+- `mcp__relatixdb__query_find` - Search nodes by type or properties
 
 ### Memory Collections Schema
 
@@ -310,6 +321,153 @@ Create and use these collections for project memory:
 - Tag memories with version numbers to track evolution
 - Set importance levels to prioritize retrieval of critical information
 
+## RelatixDB Graph Database Usage
+
+RelatixDB complements EmbeddixDB by providing graph-based relationship modeling for code structure and dependencies.
+
+### Graph Schema for Code Analysis
+
+#### Node Types
+- **`file`** - Source code files
+  - Properties: `path`, `package`, `language`, `size`, `last_modified`
+- **`function`** - Function/method definitions
+  - Properties: `name`, `signature`, `visibility`, `line_start`, `line_end`
+- **`type`** - Struct/interface/type definitions
+  - Properties: `name`, `kind` (struct/interface/type), `package`
+- **`package`** - Go packages
+  - Properties: `name`, `path`, `version`
+- **`test`** - Test cases
+  - Properties: `name`, `test_type` (unit/integration/benchmark)
+
+#### Edge Labels
+- **`contains`** - File contains function/type
+- **`calls`** - Function calls another function
+- **`implements`** - Type implements interface
+- **`imports`** - File/package imports another
+- **`tests`** - Test case tests function/type
+- **`depends_on`** - Package depends on another
+- **`uses`** - Function uses type
+
+### Usage Examples
+
+#### Mapping Code Structure
+```json
+// Add a file node
+{
+  "id": "core/store.go",
+  "type": "file",
+  "props": {
+    "path": "core/store.go",
+    "package": "core",
+    "language": "go",
+    "size": "1024"
+  }
+}
+
+// Add a function node
+{
+  "id": "core.VectorStore.Add",
+  "type": "function",
+  "props": {
+    "name": "Add",
+    "signature": "func (s *VectorStore) Add(ctx context.Context, vector *Vector) error",
+    "visibility": "public",
+    "line_start": "45",
+    "line_end": "62"
+  }
+}
+
+// Connect file to function
+{
+  "from": "core/store.go",
+  "to": "core.VectorStore.Add",
+  "label": "contains"
+}
+```
+
+#### Tracking Dependencies
+```json
+// Find all functions that call a specific function
+{
+  "node": "core.VectorStore.Add",
+  "direction": "in",
+  "label": "calls"
+}
+
+// Find import dependencies of a package
+{
+  "node": "quantization",
+  "direction": "out",
+  "label": "imports"
+}
+```
+
+#### Analyzing Test Coverage
+```json
+// Add test relationship
+{
+  "from": "core/store_test.TestAdd",
+  "to": "core.VectorStore.Add",
+  "label": "tests"
+}
+
+// Find all untested functions
+// First get all functions, then check which have no incoming "tests" edges
+```
+
+#### Finding Impact of Changes
+```json
+// Find all code that might be affected by changing a function
+{
+  "node": "core.VectorStore.Search",
+  "direction": "in",
+  "label": "calls"
+}
+
+// Find path between two components
+{
+  "from": "api/handlers.go",
+  "to": "persistence/boltdb.go",
+  "max_depth": 5
+}
+```
+
+### Best Practices for RelatixDB
+
+1. **Consistent Node IDs** - Use hierarchical IDs like `package.Type.Method`
+2. **Property Standards** - Keep property names consistent across node types
+3. **Bidirectional Relationships** - Consider if edges should be queried in both directions
+4. **Regular Updates** - Update graph when code structure changes
+5. **Combine with EmbeddixDB** - Use RelatixDB for structure, EmbeddixDB for semantic search
+
+### Integration Example
+
+Combining both databases for comprehensive code intelligence:
+```json
+// 1. Use RelatixDB to find all functions in a module
+{
+  "type": "function",
+  "props": {
+    "package": "quantization"
+  }
+}
+
+// 2. For each function, use EmbeddixDB to find similar implementations
+{
+  "collection": "embeddixdb_development",
+  "query": "quantization algorithm implementation similar to ProductQuantizer.Encode",
+  "limit": 5
+}
+
+// 3. Use RelatixDB to trace call paths between similar functions
+{
+  "from": "quantization.ProductQuantizer.Encode",
+  "to": "index.HNSW.addPoint",
+  "max_depth": 4
+}
+```
+
 ## Memory Usage Tools
 
-- **Use embeddix tool to store and find important information about the project**
+- **Use EmbeddixDB for semantic search and memory storage**
+- **Use RelatixDB for structural relationships and dependency analysis**
